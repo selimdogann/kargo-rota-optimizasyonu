@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcı Paneli - Kargo Dağıtım Sistemi</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body {
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
+            min-height: 100vh;
+            padding: 20px;
+            position: fixed;
+            width: 260px;
+        }
+        
+        .sidebar .brand {
+            color: white;
+            font-size: 1.4rem;
+            font-weight: 700;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.7);
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 5px;
+            transition: all 0.3s;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+        }
+        
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+        
+        .page-header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+        
+        .card-header {
+            background: white;
+            border-bottom: 1px solid #eee;
+            padding: 20px;
+            font-weight: 600;
+        }
+        
+        #map {
+            height: 500px;
+            border-radius: 15px;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn-primary {
+            background: var(--primary-gradient);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .cargo-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+        
+        .cargo-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .cargo-status {
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-in_transit {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-delivered {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .tracking-info {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 25px;
+        }
+        
+        .tracking-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .tracking-step .icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .tracking-step.completed .icon {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .tracking-step.active .icon {
+            background: #3498db;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        
+        .tracking-step.pending .icon {
+            background: #bdc3c7;
+            color: white;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(52, 152, 219, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="brand">
+            <i class="bi bi-truck"></i> Kargo Sistemi
+        </div>
+        <nav class="nav flex-column">
+            <a class="nav-link active" href="#send" data-section="send">
+                <i class="bi bi-box-seam"></i> Kargo Gönder
+            </a>
+            <a class="nav-link" href="#track" data-section="track">
+                <i class="bi bi-geo-alt"></i> Kargo Takip
+            </a>
+            <a class="nav-link" href="#my-cargos" data-section="my-cargos">
+                <i class="bi bi-list-ul"></i> Kargolarım
+            </a>
+            <a class="nav-link" href="#stations" data-section="stations">
+                <i class="bi bi-pin-map"></i> İstasyonlar
+            </a>
+            <hr style="border-color: rgba(255,255,255,0.1);">
+            <a class="nav-link" href="/">
+                <i class="bi bi-house"></i> Ana Sayfa
+            </a>
+            <a class="nav-link" href="/admin">
+                <i class="bi bi-gear"></i> Yönetici Paneli
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="bi bi-person-circle"></i> Kullanıcı Paneli</h1>
+            <p class="mb-0">Kargo gönderimi ve takip işlemlerinizi buradan yapabilirsiniz.</p>
+        </div>
+
+        <!-- Send Cargo Section -->
+        <div id="section-send" class="section-content">
+            <div class="row">
+                <div class="col-lg-5">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-box-seam text-primary"></i> Yeni Kargo Gönder
+                        </div>
+                        <div class="card-body">
+                            <form id="cargoForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Gönderici Adı</label>
+                                    <input type="text" class="form-control" id="senderName" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Alıcı Adı</label>
+                                    <input type="text" class="form-control" id="receiverName" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Kargo Ağırlığı (kg)</label>
+                                    <input type="number" class="form-control" id="weight" min="1" max="1000" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Çıkış İstasyonu</label>
+                                    <select class="form-select" id="sourceStation" required>
+                                        <option value="">Seçiniz...</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Varış İstasyonu</label>
+                                    <select class="form-select" id="destStation" required>
+                                        <option value="">Seçiniz...</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Teslimat Tarihi</label>
+                                    <input type="date" class="form-control" id="deliveryDate">
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-send"></i> Kargo Gönder
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-map text-primary"></i> Harita Üzerinde Seçim
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="map"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Track Cargo Section -->
+        <div id="section-track" class="section-content" style="display: none;">
+            <div class="row">
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-search text-primary"></i> Kargo Takip
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Kargo Takip Numarası</label>
+                                <input type="number" class="form-control" id="trackingId" placeholder="Örn: 1">
+                            </div>
+                            <button class="btn btn-primary w-100" onclick="trackCargo()">
+                                <i class="bi bi-search"></i> Sorgula
+                            </button>
+                            
+                            <div id="trackingResult" class="mt-4" style="display: none;">
+                                <div class="tracking-info">
+                                    <h5 class="mb-4"><i class="bi bi-box"></i> Kargo Durumu</h5>
+                                    <div id="trackingSteps"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-geo-alt text-primary"></i> Kargo Konumu
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="trackingMap" style="height: 500px; border-radius: 0 0 15px 15px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Cargos Section -->
+        <div id="section-my-cargos" class="section-content" style="display: none;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-ul text-primary"></i> Kargolarım</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadCargos()">
+                        <i class="bi bi-arrow-clockwise"></i> Yenile
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="cargoList">
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                            <p class="mt-3">Henüz kargo bulunmuyor</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stations Section -->
+        <div id="section-stations" class="section-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-pin-map text-primary"></i> Teslimat İstasyonları
+                </div>
+                <div class="card-body">
+                    <div class="row" id="stationsList">
+                        <!-- Stations will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let map, trackingMap;
+        let stations = [];
+        let selectedSource = null;
+        let selectedDest = null;
+        
+        // Sayfa yüklendiğinde
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            loadStations();
+            loadCargos();
+            
+            // Navigation
+            document.querySelectorAll('.nav-link[data-section]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const section = this.dataset.section;
+                    showSection(section);
+                    
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Form submit
+            document.getElementById('cargoForm').addEventListener('submit', submitCargo);
+        });
+        
+        function initMap() {
+            map = L.map('map').setView([40.76, 29.93], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+        }
+        
+        function showSection(section) {
+            document.querySelectorAll('.section-content').forEach(s => s.style.display = 'none');
+            document.getElementById('section-' + section).style.display = 'block';
+            
+            if (section === 'track' && !trackingMap) {
+                setTimeout(() => {
+                    trackingMap = L.map('trackingMap').setView([40.76, 29.93], 10);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap'
+                    }).addTo(trackingMap);
+                }, 100);
+            }
+        }
+        
+        function loadStations() {
+            fetch('/api/stations')
+                .then(res => res.json())
+                .then(data => {
+                    stations = data;
+                    updateStationSelects();
+                    addStationMarkers();
+                    renderStationsList();
+                });
+        }
+        
+        function updateStationSelects() {
+            const sourceSelect = document.getElementById('sourceStation');
+            const destSelect = document.getElementById('destStation');
+            
+            stations.forEach(station => {
+                sourceSelect.innerHTML += `<option value="${station.id}">${station.name}${station.is_depot ? ' (Depo)' : ''}</option>`;
+                destSelect.innerHTML += `<option value="${station.id}">${station.name}${station.is_depot ? ' (Depo)' : ''}</option>`;
+            });
+        }
+        
+        function addStationMarkers() {
+            stations.forEach(station => {
+                const color = station.is_depot ? '#e74c3c' : '#3498db';
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style="
+                        background: ${color};
+                        width: 35px;
+                        height: 35px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-weight: bold;
+                        border: 3px solid white;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                        cursor: pointer;
+                    ">${station.name.charAt(0)}</div>`,
+                    iconSize: [35, 35],
+                    iconAnchor: [17, 17]
+                });
+                
+                const marker = L.marker([station.latitude, station.longitude], { icon: icon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <strong>${station.name}</strong><br>
+                        ${station.is_depot ? '<span class="badge bg-danger">Ana Depo</span>' : ''}
+                        <br><br>
+                        <button class="btn btn-sm btn-primary" onclick="selectAsSource(${station.id})">Çıkış Noktası</button>
+                        <button class="btn btn-sm btn-success" onclick="selectAsDest(${station.id})">Varış Noktası</button>
+                    `);
+            });
+        }
+        
+        function selectAsSource(id) {
+            document.getElementById('sourceStation').value = id;
+            selectedSource = id;
+        }
+        
+        function selectAsDest(id) {
+            document.getElementById('destStation').value = id;
+            selectedDest = id;
+        }
+        
+        function renderStationsList() {
+            const container = document.getElementById('stationsList');
+            container.innerHTML = stations.map(s => `
+                <div class="col-md-4 col-lg-3 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <div style="
+                                width: 60px;
+                                height: 60px;
+                                border-radius: 50%;
+                                background: ${s.is_depot ? '#e74c3c' : '#3498db'};
+                                color: white;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 1.5rem;
+                                font-weight: bold;
+                                margin: 0 auto 15px;
+                            ">${s.name.charAt(0)}</div>
+                            <h6>${s.name}</h6>
+                            ${s.is_depot ? '<span class="badge bg-danger">Ana Depo</span>' : '<span class="badge bg-secondary">Teslimat Noktası</span>'}
+                            <p class="small text-muted mt-2 mb-0">
+                                ${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function submitCargo(e) {
+            e.preventDefault();
+            
+            const cargo = {
+                sender_name: document.getElementById('senderName').value,
+                receiver_name: document.getElementById('receiverName').value,
+                weight: parseFloat(document.getElementById('weight').value),
+                source_station_id: parseInt(document.getElementById('sourceStation').value),
+                dest_station_id: parseInt(document.getElementById('destStation').value),
+                delivery_date: document.getElementById('deliveryDate').value
+            };
+            
+            fetch('/api/cargos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cargo)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(`Kargo başarıyla oluşturuldu! Takip No: ${data.id}`);
+                document.getElementById('cargoForm').reset();
+                loadCargos();
+            })
+            .catch(err => {
+                alert('Hata oluştu: ' + err.message);
+            });
+        }
+        
+        function loadCargos() {
+            fetch('/api/cargos')
+                .then(res => res.json())
+                .then(cargos => {
+                    const container = document.getElementById('cargoList');
+                    
+                    if (cargos.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center text-muted py-5">
+                                <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                                <p class="mt-3">Henüz kargo bulunmuyor</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    container.innerHTML = cargos.map(c => `
+                        <div class="cargo-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <i class="bi bi-box"></i> Kargo #${c.id}
+                                    </h6>
+                                    <p class="text-muted mb-2">
+                                        ${c.source_station?.name || 'Bilinmiyor'} 
+                                        <i class="bi bi-arrow-right"></i> 
+                                        ${c.dest_station?.name || 'Bilinmiyor'}
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-box-seam"></i> ${c.weight} kg |
+                                        <i class="bi bi-person"></i> ${c.sender_name} → ${c.receiver_name}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="cargo-status status-${c.status}">
+                                        ${getStatusText(c.status)}
+                                    </span>
+                                    <br>
+                                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="showTrackingDetail(${c.id})">
+                                        <i class="bi bi-geo-alt"></i> Takip
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+        
+        function getStatusText(status) {
+            const texts = {
+                'pending': 'Beklemede',
+                'in_transit': 'Yolda',
+                'delivered': 'Teslim Edildi'
+            };
+            return texts[status] || status;
+        }
+        
+        function trackCargo() {
+            const id = document.getElementById('trackingId').value;
+            if (!id) {
+                alert('Lütfen takip numarası giriniz');
+                return;
+            }
+            
+            fetch(`/api/cargos/track/${id}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Kargo bulunamadı');
+                    return res.json();
+                })
+                .then(data => {
+                    displayTrackingInfo(data);
+                })
+                .catch(err => {
+                    alert(err.message);
+                });
+        }
+        
+        function showTrackingDetail(id) {
+            showSection('track');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.querySelector('[data-section="track"]').classList.add('active');
+            
+            document.getElementById('trackingId').value = id;
+            trackCargo();
+        }
+        
+        function displayTrackingInfo(cargo) {
+            document.getElementById('trackingResult').style.display = 'block';
+            
+            const steps = [
+                { status: 'completed', icon: 'bi-box-seam', text: 'Kargo Alındı', desc: cargo.source_station?.name },
+                { status: cargo.status === 'pending' ? 'active' : 'completed', icon: 'bi-clock', text: 'İşleniyor', desc: 'Rota planlanıyor' },
+                { status: cargo.status === 'in_transit' ? 'active' : (cargo.status === 'delivered' ? 'completed' : 'pending'), icon: 'bi-truck', text: 'Yolda', desc: cargo.vehicle_id ? `Araç #${cargo.vehicle_id}` : 'Araç atanmadı' },
+                { status: cargo.status === 'delivered' ? 'completed' : 'pending', icon: 'bi-check-circle', text: 'Teslim Edildi', desc: cargo.dest_station?.name }
+            ];
+            
+            document.getElementById('trackingSteps').innerHTML = steps.map(step => `
+                <div class="tracking-step ${step.status}">
+                    <div class="icon">
+                        <i class="bi ${step.icon}"></i>
+                    </div>
+                    <div>
+                        <strong>${step.text}</strong>
+                        <br>
+                        <small class="text-muted">${step.desc}</small>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Haritayı güncelle - Sadece bu kargonun aracının rotasını çiz
+            if (trackingMap) {
+                trackingMap.eachLayer(layer => {
+                    if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+                        trackingMap.removeLayer(layer);
+                    }
+                });
+                
+                // Tile layer'ı tekrar ekle
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(trackingMap);
+                
+                // Bu kargonun aracının rotasını getir (sadece bu araca ait bilgi gelir)
+                fetchMyCargoRoute(cargo.id);
+            }
+        }
+        
+        // Kullanıcının sadece kendi kargosunun aracının rotasını görme fonksiyonu
+        // Diğer araçların rotalarına erişim engellenir
+        function fetchMyCargoRoute(cargoId) {
+            fetch(`/api/cargos/my-route/${cargoId}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Rota bilgisi henüz mevcut değil');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    displayMyVehicleRoute(data);
+                })
+                .catch(err => {
+                    // Rota henüz planlanmamış, basit çizim yap
+                    console.log('Rota bilgisi alınamadı:', err.message);
+                    displayBasicRoute();
+                });
+        }
+        
+        // Sadece kullanıcının kargosunun bulunduğu aracın rotasını göster
+        // DİĞER ARAÇLARIN ROTA BİLGİLERİNE ERİŞİM ENGELLENMİŞTİR
+        function displayMyVehicleRoute(routeData) {
+            if (!trackingMap) return;
+            
+            const bounds = [];
+            
+            // Araç bilgisi
+            if (routeData.vehicle) {
+                const vehicleInfo = document.createElement('div');
+                vehicleInfo.className = 'alert alert-info mt-3';
+                vehicleInfo.innerHTML = `
+                    <h6><i class="bi bi-truck"></i> Aracınızın Bilgileri</h6>
+                    <p class="mb-1"><strong>Araç ID:</strong> ${routeData.vehicle.id}</p>
+                    <p class="mb-1"><strong>Kapasite:</strong> ${routeData.vehicle.capacity} kg</p>
+                    <p class="mb-1"><strong>Günlük Kiralama:</strong> ${routeData.vehicle.daily_rental_cost} ₺</p>
+                    <p class="mb-0"><strong>Km Başına Maliyet:</strong> ${routeData.vehicle.cost_per_km} ₺</p>
+                `;
+                const trackingResult = document.getElementById('trackingResult');
+                const existingInfo = trackingResult.querySelector('.alert-info');
+                if (existingInfo) existingInfo.remove();
+                trackingResult.appendChild(vehicleInfo);
+            }
+            
+            // Rota bilgisi
+            if (routeData.route) {
+                const routeInfo = document.createElement('div');
+                routeInfo.className = 'alert alert-success mt-2';
+                routeInfo.innerHTML = `
+                    <h6><i class="bi bi-signpost-2"></i> Rota Bilgileri</h6>
+                    <p class="mb-1"><strong>Toplam Mesafe:</strong> ${routeData.route.distance?.toFixed(2) || 0} km</p>
+                    <p class="mb-1"><strong>Yakıt Maliyeti:</strong> ${routeData.route.fuel_cost?.toFixed(2) || 0} ₺</p>
+                    <p class="mb-1"><strong>Toplam Maliyet:</strong> ${routeData.route.total_cost?.toFixed(2) || 0} ₺</p>
+                    <p class="mb-0"><strong>Durak Sayısı:</strong> ${routeData.route.stops?.length || 0}</p>
+                `;
+                const trackingResult = document.getElementById('trackingResult');
+                const existingRoute = trackingResult.querySelector('.alert-success');
+                if (existingRoute) existingRoute.remove();
+                trackingResult.appendChild(routeInfo);
+            }
+            
+            // A* algoritması ile çizilmiş yol koordinatlarını kullan
+            if (routeData.path_coordinates && routeData.path_coordinates.length > 0) {
+                // Path koordinatlarını kullanarak gerçekçi yol çiz
+                const pathLatLngs = routeData.path_coordinates.map(coord => [coord[0], coord[1]]);
+                
+                L.polyline(pathLatLngs, {
+                    color: '#3498db',
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(trackingMap);
+                
+                bounds.push(...pathLatLngs);
+            }
+            
+            // Durakları işaretle
+            if (routeData.route && routeData.route.stops) {
+                routeData.route.stops.forEach((stop, index) => {
+                    const isMyStop = stop.station_id === routeData.cargo?.source_station_id || 
+                                    stop.station_id === routeData.cargo?.dest_station_id;
+                    
+                    const color = isMyStop ? '#e74c3c' : '#3498db';
+                    const icon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="
+                            background: ${color};
+                            width: ${isMyStop ? '40px' : '30px'};
+                            height: ${isMyStop ? '40px' : '30px'};
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: white;
+                            font-weight: bold;
+                            border: 3px solid white;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                            font-size: ${isMyStop ? '14px' : '12px'};
+                        ">${index + 1}</div>`,
+                        iconSize: [isMyStop ? 40 : 30, isMyStop ? 40 : 30],
+                        iconAnchor: [isMyStop ? 20 : 15, isMyStop ? 20 : 15]
+                    });
+                    
+                    L.marker([stop.latitude, stop.longitude], { icon: icon })
+                        .addTo(trackingMap)
+                        .bindPopup(`
+                            <strong>${stop.station_name}</strong><br>
+                            <small>Durak ${index + 1}</small>
+                            ${isMyStop ? '<br><span class="badge bg-danger">Sizin Durağınız</span>' : ''}
+                        `);
+                    
+                    bounds.push([stop.latitude, stop.longitude]);
+                });
+            }
+            
+            // Kargo konumunu işaretle (eğer yoldaysa)
+            if (routeData.cargo && routeData.cargo.status === 'in_transit' && routeData.current_position) {
+                const truckIcon = L.divIcon({
+                    className: 'truck-marker',
+                    html: `<div style="
+                        background: #27ae60;
+                        width: 45px;
+                        height: 45px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-size: 1.2rem;
+                        border: 3px solid white;
+                        box-shadow: 0 2px 15px rgba(0,0,0,0.4);
+                        animation: pulse 2s infinite;
+                    "><i class="bi bi-truck"></i></div>`,
+                    iconSize: [45, 45],
+                    iconAnchor: [22, 22]
+                });
+                
+                L.marker([routeData.current_position.lat, routeData.current_position.lng], { icon: truckIcon })
+                    .addTo(trackingMap)
+                    .bindPopup('<strong>Aracınız Burada!</strong>');
+                    
+                bounds.push([routeData.current_position.lat, routeData.current_position.lng]);
+            }
+            
+            // Haritayı sınırlara göre ayarla
+            if (bounds.length > 0) {
+                trackingMap.fitBounds(bounds, { padding: [50, 50] });
+            }
+            
+            // Güvenlik notu ekle
+            const securityNote = document.createElement('div');
+            securityNote.className = 'alert alert-warning mt-2';
+            securityNote.innerHTML = `
+                <small><i class="bi bi-shield-check"></i> 
+                Güvenlik: Sadece kendi kargonuzun bulunduğu aracın güzergah bilgileri gösterilmektedir. 
+                Diğer araçların rota bilgilerine erişiminiz bulunmamaktadır.</small>
+            `;
+            const trackingResult = document.getElementById('trackingResult');
+            const existingNote = trackingResult.querySelector('.alert-warning');
+            if (existingNote) existingNote.remove();
+            trackingResult.appendChild(securityNote);
+        }
+        
+        // Basit rota çizimi (rota henüz planlanmamışsa)
+        function displayBasicRoute() {
+            const id = document.getElementById('trackingId').value;
+            
+            fetch(`/api/cargos/track/${id}`)
+                .then(res => res.json())
+                .then(cargo => {
+                    if (cargo.source_station && cargo.dest_station) {
+                        // Kaynak marker
+                        L.marker([cargo.source_station.latitude, cargo.source_station.longitude])
+                            .addTo(trackingMap)
+                            .bindPopup(`<strong>Çıkış:</strong> ${cargo.source_station.name}`);
+                        
+                        // Hedef marker
+                        L.marker([cargo.dest_station.latitude, cargo.dest_station.longitude])
+                            .addTo(trackingMap)
+                            .bindPopup(`<strong>Varış:</strong> ${cargo.dest_station.name}`);
+                        
+                        // Tahmini rota çizgisi (henüz rota planlanmamış)
+                        const latlngs = [
+                            [cargo.source_station.latitude, cargo.source_station.longitude],
+                            [cargo.dest_station.latitude, cargo.dest_station.longitude]
+                        ];
+                        
+                        L.polyline(latlngs, { color: '#95a5a6', weight: 3, dashArray: '10, 10' })
+                            .addTo(trackingMap);
+                        
+                        trackingMap.fitBounds(latlngs, { padding: [50, 50] });
+                        
+                        // Bilgi notu
+                        const note = document.createElement('div');
+                        note.className = 'alert alert-secondary mt-3';
+                        note.innerHTML = `
+                            <small><i class="bi bi-info-circle"></i> 
+                            Rota henüz planlanmamış. Admin panelinden rota optimizasyonu yapıldıktan sonra 
+                            aracınızın tam güzergahını görebilirsiniz.</small>
+                        `;
+                        const trackingResult = document.getElementById('trackingResult');
+                        const existingNote = trackingResult.querySelector('.alert-secondary');
+                        if (existingNote) existingNote.remove();
+                        trackingResult.appendChild(note);
+                    }
+                });
+        }
+    </script>
+</body>
+</html>

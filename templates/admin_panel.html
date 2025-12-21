@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yönetici Paneli - Kargo Dağıtım Sistemi</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --admin-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        body { background: #f0f2f5; min-height: 100vh; }
+        .sidebar { background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; position: fixed; width: 280px; }
+        .sidebar .brand { color: white; font-size: 1.4rem; font-weight: 700; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 15px; border-radius: 10px; margin-bottom: 5px; transition: all 0.3s; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: white; background: rgba(255,255,255,0.1); }
+        .sidebar .nav-link i { margin-right: 10px; width: 20px; }
+        .main-content { margin-left: 280px; padding: 30px; }
+        .page-header { background: var(--admin-gradient); color: white; padding: 30px; border-radius: 15px; margin-bottom: 30px; }
+        .stat-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); margin-bottom: 25px; border-left: 4px solid; transition: transform 0.3s; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card.primary { border-color: #667eea; }
+        .stat-card.success { border-color: #27ae60; }
+        .stat-card.warning { border-color: #f39c12; }
+        .stat-card.danger { border-color: #e74c3c; }
+        .stat-card .number { font-size: 2.5rem; font-weight: 800; }
+        .stat-card.primary .number { color: #667eea; }
+        .stat-card.success .number { color: #27ae60; }
+        .stat-card.warning .number { color: #f39c12; }
+        .stat-card.danger .number { color: #e74c3c; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); margin-bottom: 25px; }
+        .card-header { background: white; border-bottom: 1px solid #eee; padding: 20px; font-weight: 600; border-radius: 15px 15px 0 0 !important; }
+        #adminMap { height: 550px; border-radius: 0 0 15px 15px; }
+        .btn-optimize { background: var(--admin-gradient); border: none; padding: 15px 40px; font-weight: 600; color: white; }
+        .btn-optimize:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(240, 147, 251, 0.4); color: white; }
+        .route-detail-card { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 15px; border-left: 4px solid; }
+        .cargo-list-item { background: white; border-radius: 8px; padding: 10px 15px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .vehicle-badge { display: inline-block; padding: 6px 15px; border-radius: 50px; font-size: 0.85rem; font-weight: 600; color: white; }
+        .trip-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .scenario-btn { padding: 20px; border-radius: 15px; font-weight: 600; transition: all 0.3s; height: 100%; }
+        .scenario-btn:hover { transform: scale(1.02); }
+        .optimization-result { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; padding: 30px; color: white; }
+        .form-control, .form-select { border-radius: 10px; padding: 12px 15px; }
+        .table thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .station-summary-card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; border-left: 3px solid #667eea; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand"><i class="bi bi-speedometer2"></i> Yönetici Paneli</div>
+        <nav class="nav flex-column">
+            <a class="nav-link active" href="#" data-section="dashboard"><i class="bi bi-grid"></i> Dashboard</a>
+            <a class="nav-link" href="#" data-section="routes"><i class="bi bi-map"></i> Rota Planlaması</a>
+            <a class="nav-link" href="#" data-section="trips"><i class="bi bi-clock-history"></i> Sefer Kayıtları</a>
+            <a class="nav-link" href="#" data-section="stations"><i class="bi bi-pin-map"></i> İstasyon Yönetimi</a>
+            <a class="nav-link" href="#" data-section="vehicles"><i class="bi bi-truck"></i> Araç Filosu</a>
+            <a class="nav-link" href="#" data-section="scenarios"><i class="bi bi-lightning"></i> Senaryo Testleri</a>
+            <a class="nav-link" href="#" data-section="analytics"><i class="bi bi-bar-chart"></i> Analizler</a>
+            <hr style="border-color: rgba(255,255,255,0.1);">
+            <a class="nav-link" href="/"><i class="bi bi-house"></i> Ana Sayfa</a>
+            <a class="nav-link" href="/user"><i class="bi bi-person"></i> Kullanıcı Paneli</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1><i class="bi bi-speedometer2"></i> Yönetici Paneli</h1>
+                    <p class="mb-0">Kargo dağıtım sistemini yönetin ve optimizasyon yapın.</p>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-light btn-lg" onclick="optimizeRoutes()">
+                        <i class="bi bi-lightning-charge"></i> Rota Optimize Et
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Algoritma Bilgi Banner -->
+        <div class="alert alert-info mb-4">
+            <div class="row align-items-center">
+                <div class="col-auto"><i class="bi bi-cpu fs-2"></i></div>
+                <div class="col">
+                    <strong>A* Algoritması ile Güzergah Çizimi</strong><br>
+                    <small>Kuş uçuşu çizim yapılmamaktadır. Kocaeli yol ağı üzerinde A* pathfinding algoritması ile gerçekçi güzergahlar hesaplanmaktadır. Harici API (Google Maps, Yandex vb.) kullanılmamaktadır.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="section-dashboard" class="section-content">
+            <div class="row">
+                <div class="col-md-3"><div class="stat-card primary"><div class="number" id="totalCargos">0</div><div class="text-muted">Toplam Kargo</div></div></div>
+                <div class="col-md-3"><div class="stat-card warning"><div class="number" id="pendingCargos">0</div><div class="text-muted">Bekleyen Kargo</div></div></div>
+                <div class="col-md-3"><div class="stat-card success"><div class="number" id="deliveredCargos">0</div><div class="text-muted">Teslim Edilen</div></div></div>
+                <div class="col-md-3"><div class="stat-card danger"><div class="number" id="totalCost">0</div><div class="text-muted">Toplam Maliyet (₺)</div></div></div>
+            </div>
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between">
+                            <span><i class="bi bi-map text-primary"></i> Canlı Harita - A* Algoritması ile Yol Ağı Çizimi</span>
+                            <button class="btn btn-sm btn-outline-primary" onclick="refreshMap()"><i class="bi bi-arrow-clockwise"></i></button>
+                        </div>
+                        <div class="card-body p-0"><div id="adminMap"></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header"><i class="bi bi-pie-chart text-primary"></i> Maliyet Dağılımı</div>
+                        <div class="card-body"><canvas id="costChart"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><i class="bi bi-info-circle text-primary"></i> İstasyon Kargo Özeti</div>
+                        <div class="card-body" id="stationSummary" style="max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rota Planlaması -->
+        <div id="section-routes" class="section-content" style="display: none;">
+            <div class="row">
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header"><i class="bi bi-lightning text-warning"></i> Rota Optimizasyonu</div>
+                        <div class="card-body">
+                            <p>Genetik Algoritma ile bir sonraki gün için optimal rotaları hesaplayın.</p>
+                            <div class="mb-3">
+                                <label class="form-label">Hedef Tarih</label>
+                                <input type="date" class="form-control" id="optimizeDate">
+                            </div>
+                            <button class="btn btn-optimize w-100" onclick="optimizeRoutes()"><i class="bi bi-cpu"></i> Optimizasyonu Başlat</button>
+                            <div id="optimizationResult" class="mt-4" style="display: none;"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><i class="bi bi-box-seam text-info"></i> Bekleyen Kargolar</div>
+                        <div class="card-body" id="pendingCargosList" style="max-height: 300px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between">
+                            <span><i class="bi bi-signpost-2 text-primary"></i> Araç Rotaları, Maliyetler ve Kargolar</span>
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadRouteDetails()"><i class="bi bi-arrow-clockwise"></i></button>
+                        </div>
+                        <div class="card-body" id="routeDetailsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sefer Kayıtları -->
+        <div id="section-trips" class="section-content" style="display: none;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <span><i class="bi bi-clock-history text-primary"></i> Tüm Sefer Kayıtları (Anlık Kayıt)</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadTrips()"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead><tr><th>ID</th><th>Araç</th><th>Tarih</th><th>Kargo</th><th>Ağırlık</th><th>Mesafe</th><th>Yakıt</th><th>Kiralama</th><th>Toplam</th><th>Durum</th><th>İşlem</th></tr></thead>
+                            <tbody id="tripsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- İstasyon Yönetimi -->
+        <div id="section-stations" class="section-content" style="display: none;">
+            <div class="row">
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header"><i class="bi bi-plus-circle text-success"></i> Yeni İstasyon Ekle</div>
+                        <div class="card-body">
+                            <form id="stationForm">
+                                <div class="mb-3"><label class="form-label">İstasyon Adı</label><input type="text" class="form-control" id="stationName" required></div>
+                                <div class="mb-3"><label class="form-label">Enlem (Latitude)</label><input type="number" step="0.0001" class="form-control" id="stationLat" required></div>
+                                <div class="mb-3"><label class="form-label">Boylam (Longitude)</label><input type="number" step="0.0001" class="form-control" id="stationLng" required></div>
+                                <div class="form-check mb-3"><input type="checkbox" class="form-check-input" id="isDepot"><label class="form-check-label" for="isDepot">Ana Depo</label></div>
+                                <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus"></i> İstasyon Ekle</button>
+                            </form>
+                            <div class="alert alert-info mt-3"><small>Yeni istasyon eklendiğinde harita otomatik güncellenir.</small></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header"><i class="bi bi-list-ul text-primary"></i> Kocaeli İlçeleri (İstasyonlar)</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table" id="stationsTable">
+                                    <thead><tr><th>ID</th><th>İsim</th><th>Koordinat</th><th>Tip</th><th>İşlem</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Araç Filosu -->
+        <div id="section-vehicles" class="section-content" style="display: none;">
+            <div class="row" id="vehiclesList"></div>
+            <div class="card mt-4">
+                <div class="card-header"><i class="bi bi-plus-circle text-success"></i> Yeni Araç Ekle</div>
+                <div class="card-body">
+                    <form id="vehicleForm" class="row g-3">
+                        <div class="col-md-3"><label class="form-label">Araç Adı</label><input type="text" class="form-control" id="vehicleName" required></div>
+                        <div class="col-md-3"><label class="form-label">Kapasite (kg)</label><input type="number" class="form-control" id="vehicleCapacity" required></div>
+                        <div class="col-md-3"><label class="form-label">km Başı Maliyet (₺)</label><input type="number" step="0.1" class="form-control" id="vehicleCostPerKm" value="1.0"></div>
+                        <div class="col-md-3 d-flex align-items-end"><button type="submit" class="btn btn-success w-100"><i class="bi bi-plus"></i> Ekle</button></div>
+                    </form>
+                </div>
+            </div>
+            <div class="card mt-4">
+                <div class="card-header"><i class="bi bi-bar-chart text-primary"></i> Araç Performans Raporu</div>
+                <div class="card-body" id="vehiclePerformance"></div>
+            </div>
+        </div>
+
+        <!-- Senaryo Testleri -->
+        <div id="section-scenarios" class="section-content" style="display: none;">
+            <div class="row mb-4">
+                <div class="col-md-3"><button class="scenario-btn btn btn-outline-primary w-100 h-100" onclick="runScenario(1)"><i class="bi bi-1-circle fs-1 d-block mb-2"></i><strong>Senaryo 1</strong><br><small>Hafif Yük (~880 kg)</small></button></div>
+                <div class="col-md-3"><button class="scenario-btn btn btn-outline-success w-100 h-100" onclick="runScenario(2)"><i class="bi bi-2-circle fs-1 d-block mb-2"></i><strong>Senaryo 2</strong><br><small>Orta Yük (~2100 kg)</small></button></div>
+                <div class="col-md-3"><button class="scenario-btn btn btn-outline-warning w-100 h-100" onclick="runScenario(3)"><i class="bi bi-3-circle fs-1 d-block mb-2"></i><strong>Senaryo 3</strong><br><small>Kapasite Aşımı (2700 kg)</small></button></div>
+                <div class="col-md-3"><button class="scenario-btn btn btn-outline-danger w-100 h-100" onclick="runScenario(4)"><i class="bi bi-4-circle fs-1 d-block mb-2"></i><strong>Senaryo 4</strong><br><small>Yoğun Gün (~2230 kg)</small></button></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><i class="bi bi-table text-primary"></i> Tüm Senaryolar Özet Tablosu</div>
+                <div class="card-body" id="scenarioSummaryTable"></div>
+            </div>
+            <div id="scenarioResult" class="mt-4" style="display: none;"></div>
+        </div>
+
+        <!-- Analizler -->
+        <div id="section-analytics" class="section-content" style="display: none;">
+            <div class="row">
+                <div class="col-md-6"><div class="card"><div class="card-header"><i class="bi bi-bar-chart text-primary"></i> Maliyet Analizi</div><div class="card-body"><canvas id="costAnalysisChart"></canvas></div></div></div>
+                <div class="col-md-6"><div class="card"><div class="card-header"><i class="bi bi-graph-up text-success"></i> Verimlilik</div><div class="card-body"><canvas id="efficiencyChart"></canvas></div></div></div>
+            </div>
+            <div class="card mt-4">
+                <div class="card-header"><i class="bi bi-table text-primary"></i> Özet Metrikleri</div>
+                <div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>Metrik</th><th>Değer</th><th>Durum</th></tr></thead><tbody id="analyticsTable"></tbody></table></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let adminMap;
+        let stations = [];
+        let routeLayers = [];
+        let stationMarkers = [];
+        const ROUTE_COLORS = ['#e74c3c', '#3498db', '#27ae60', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#2ecc71'];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initAdminMap();
+            loadDashboardData();
+            loadStations();
+            loadVehicles();
+            loadTrips();
+            loadStationSummary();
+            loadScenarioSummary();
+            
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('optimizeDate').value = tomorrow.toISOString().split('T')[0];
+            
+            document.querySelectorAll('.nav-link[data-section]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showSection(this.dataset.section);
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            document.getElementById('stationForm').addEventListener('submit', addStation);
+            document.getElementById('vehicleForm').addEventListener('submit', addVehicle);
+        });
+
+        function initAdminMap() {
+            adminMap = L.map('adminMap').setView([40.76, 29.93], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(adminMap);
+            
+            // A* Yol Ağı kavşaklarını göster (isteğe bağlı)
+            drawRoadNetwork();
+        }
+        
+        // Kocaeli yol ağını haritada göster
+        function drawRoadNetwork() {
+            const intersections = [
+                {id: 'K1', lat: 40.7654, lng: 29.9408, name: 'İzmit Merkez'},
+                {id: 'K2', lat: 40.7700, lng: 29.8800, name: 'İzmit Batı'},
+                {id: 'K3', lat: 40.7600, lng: 29.8200, name: 'Derince Kavşak'},
+                {id: 'K4', lat: 40.7550, lng: 29.7600, name: 'Körfez Kavşak'},
+                {id: 'K5', lat: 40.7200, lng: 29.8400, name: 'Gölcük Kavşak'},
+                {id: 'K6', lat: 40.7000, lng: 29.6500, name: 'Karamürsel Kavşak'},
+                {id: 'K7', lat: 40.7800, lng: 29.5500, name: 'Dilovası Kavşak'},
+                {id: 'K8', lat: 40.8000, lng: 29.4500, name: 'Gebze Batı'},
+                {id: 'K9', lat: 40.8027, lng: 29.4307, name: 'Gebze Merkez'},
+                {id: 'K10', lat: 40.7700, lng: 29.3800, name: 'Darıca Kavşak'},
+                {id: 'K11', lat: 40.8200, lng: 29.3700, name: 'Çayırova Kavşak'},
+                {id: 'K12', lat: 40.7400, lng: 29.9800, name: 'Kartepe Kavşak'},
+                {id: 'K13', lat: 40.7200, lng: 29.9400, name: 'Başiskele Kavşak'},
+                {id: 'K14', lat: 41.0000, lng: 30.0000, name: 'Kandıra Yol'},
+                {id: 'K15', lat: 40.9000, lng: 29.9800, name: 'Kandıra Güney'},
+                {id: 'K16', lat: 40.8500, lng: 29.9500, name: 'İzmit Kuzey'}
+            ];
+            
+            const roads = [
+                ['K1', 'K2'], ['K2', 'K3'], ['K3', 'K4'], ['K4', 'K7'],
+                ['K7', 'K8'], ['K8', 'K9'], ['K9', 'K10'], ['K10', 'K11'],
+                ['K1', 'K12'], ['K12', 'K13'], ['K13', 'K5'],
+                ['K3', 'K5'], ['K5', 'K6'], ['K4', 'K6'],
+                ['K1', 'K16'], ['K16', 'K15'], ['K15', 'K14'],
+                ['K2', 'K5'], ['K6', 'K7'], ['K11', 'K9'],
+                ['K1', 'K13'], ['K16', 'K12']
+            ];
+            
+            const intMap = {};
+            intersections.forEach(i => intMap[i.id] = i);
+            
+            // Yol ağı çizgileri (gri, kesikli - arka plan)
+            roads.forEach(road => {
+                const from = intMap[road[0]];
+                const to = intMap[road[1]];
+                L.polyline([[from.lat, from.lng], [to.lat, to.lng]], {
+                    color: '#95a5a6', weight: 2, opacity: 0.4, dashArray: '5, 5'
+                }).addTo(adminMap);
+            });
+            
+            // Kavşak noktaları (küçük gri noktalar)
+            intersections.forEach(intersection => {
+                L.circleMarker([intersection.lat, intersection.lng], {
+                    radius: 4, color: '#7f8c8d', fillColor: '#bdc3c7', fillOpacity: 0.6, weight: 1
+                }).addTo(adminMap).bindPopup(`<small>A* Kavşak: ${intersection.name}</small>`);
+            });
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('.section-content').forEach(s => s.style.display = 'none');
+            document.getElementById('section-' + section).style.display = 'block';
+            if (section === 'routes') { loadRouteDetails(); loadPendingCargos(); }
+            if (section === 'analytics') loadAnalytics();
+            if (section === 'trips') loadTrips();
+            if (section === 'vehicles') loadVehiclePerformance();
+        }
+
+        function loadDashboardData() {
+            fetch('/api/analytics/summary').then(r => r.json()).then(data => {
+                document.getElementById('totalCargos').textContent = data.total_cargos;
+                document.getElementById('pendingCargos').textContent = data.pending_cargos;
+                document.getElementById('deliveredCargos').textContent = data.delivered_cargos;
+                document.getElementById('totalCost').textContent = data.total_cost.toFixed(0);
+            });
+            
+            fetch('/api/analytics/cost-breakdown').then(r => r.json()).then(data => {
+                const ctx = document.getElementById('costChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: ['Yakıt', 'Kiralama'], datasets: [{ data: [data.fuel_cost, data.rental_cost], backgroundColor: ['#3498db', '#e74c3c'] }] },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                });
+            });
+        }
+
+        function loadStationSummary() {
+            fetch('/api/analytics/station-summary').then(r => r.json()).then(data => {
+                const container = document.getElementById('stationSummary');
+                const withCargo = data.filter(s => s.cargo_count > 0);
+                if (withCargo.length === 0) { container.innerHTML = '<p class="text-muted text-center">Bekleyen kargo yok</p>'; return; }
+                container.innerHTML = withCargo.map(s => `<div class="station-summary-card"><div class="d-flex justify-content-between"><strong>${s.station.name}</strong><span class="badge bg-primary">${s.cargo_count} kargo</span></div><small class="text-muted">Toplam: ${s.total_weight} kg</small></div>`).join('');
+            });
+        }
+
+        function loadStations() {
+            fetch('/api/stations').then(r => r.json()).then(data => {
+                stations = data;
+                renderStationsOnMap();
+                renderStationsTable();
+            });
+        }
+
+        function renderStationsOnMap() {
+            stationMarkers.forEach(m => adminMap.removeLayer(m));
+            stationMarkers = [];
+            
+            stations.forEach(station => {
+                const color = station.is_depot ? '#e74c3c' : '#3498db';
+                const size = station.is_depot ? 45 : 35;
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style="background:${color};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.3);">${station.name.charAt(0)}</div>`,
+                    iconSize: [size, size], iconAnchor: [size/2, size/2]
+                });
+                const marker = L.marker([station.latitude, station.longitude], { icon })
+                    .addTo(adminMap)
+                    .bindPopup(`<strong>${station.name}</strong><br>${station.is_depot ? '🏭 Ana Depo' : '📍 Teslimat Noktası'}<br><small>Lat: ${station.latitude.toFixed(4)}, Lng: ${station.longitude.toFixed(4)}</small>`);
+                stationMarkers.push(marker);
+            });
+        }
+
+        function renderStationsTable() {
+            document.querySelector('#stationsTable tbody').innerHTML = stations.map(s => `
+                <tr><td>${s.id}</td><td>${s.name}</td><td>${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}</td>
+                <td>${s.is_depot ? '<span class="badge bg-danger">Depo</span>' : '<span class="badge bg-secondary">İlçe</span>'}</td>
+                <td><button class="btn btn-sm btn-outline-danger" onclick="deleteStation(${s.id})"><i class="bi bi-trash"></i></button></td></tr>
+            `).join('');
+        }
+
+        function addStation(e) {
+            e.preventDefault();
+            fetch('/api/stations', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: document.getElementById('stationName').value, latitude: parseFloat(document.getElementById('stationLat').value), longitude: parseFloat(document.getElementById('stationLng').value), is_depot: document.getElementById('isDepot').checked })
+            }).then(r => r.json()).then(() => { alert('İstasyon eklendi! Harita güncellendi.'); document.getElementById('stationForm').reset(); loadStations(); });
+        }
+
+        function deleteStation(id) { if (confirm('Silmek istediğinize emin misiniz?')) { fetch(`/api/stations/${id}`, { method: 'DELETE' }).then(() => loadStations()); } }
+
+        function loadVehicles() {
+            fetch('/api/vehicles').then(r => r.json()).then(vehicles => {
+                const colors = ['#3498db', '#27ae60', '#f39c12', '#9b59b6', '#e74c3c'];
+                document.getElementById('vehiclesList').innerHTML = vehicles.map((v, i) => `
+                    <div class="col-md-4 mb-4"><div class="card h-100"><div class="card-body text-center">
+                        <div style="width:80px;height:80px;border-radius:50%;background:${colors[i%colors.length]};display:flex;align-items:center;justify-content:center;margin:0 auto 15px;color:white;font-size:2rem;"><i class="bi bi-truck"></i></div>
+                        <h5>${v.name}</h5><span class="badge bg-primary">${v.capacity} kg</span>${v.is_rental ? '<span class="badge bg-warning ms-1">Kiralık</span>' : ''}
+                        <p class="text-muted mt-2 mb-0">${v.cost_per_km} ₺/km ${v.is_rental ? `| Kiralama: ${v.rental_cost} ₺` : ''}</p>
+                    </div></div></div>
+                `).join('');
+            });
+        }
+
+        function addVehicle(e) {
+            e.preventDefault();
+            fetch('/api/vehicles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: document.getElementById('vehicleName').value, capacity: parseFloat(document.getElementById('vehicleCapacity').value), cost_per_km: parseFloat(document.getElementById('vehicleCostPerKm').value) })
+            }).then(() => { document.getElementById('vehicleForm').reset(); loadVehicles(); });
+        }
+
+        function loadVehiclePerformance() {
+            fetch('/api/analytics/vehicle-breakdown').then(r => r.json()).then(data => {
+                document.getElementById('vehiclePerformance').innerHTML = `<div class="table-responsive"><table class="table"><thead><tr><th>Araç</th><th>Sefer</th><th>Mesafe</th><th>Maliyet</th><th>Kargo</th><th>Verimlilik</th></tr></thead><tbody>${data.map(v => `<tr><td><strong>${v.vehicle.name}</strong></td><td>${v.total_trips}</td><td>${v.total_distance} km</td><td>${v.total_cost} ₺</td><td>${v.total_cargos}</td><td><div class="progress" style="width:100px;"><div class="progress-bar" style="width:${v.efficiency}%">${v.efficiency}%</div></div></td></tr>`).join('')}</tbody></table></div>`;
+            });
+        }
+
+        function loadPendingCargos() {
+            fetch('/api/cargos/pending').then(r => r.json()).then(cargos => {
+                const container = document.getElementById('pendingCargosList');
+                if (cargos.length === 0) { container.innerHTML = '<p class="text-muted text-center">Bekleyen kargo yok</p>'; return; }
+                container.innerHTML = cargos.map(c => `<div class="cargo-list-item"><div><strong>${c.receiver_name}</strong><br><small class="text-muted">${c.dest_station?.name}</small></div><span class="badge bg-warning">${c.weight} kg</span></div>`).join('');
+            });
+        }
+
+        function loadRouteDetails() {
+            fetch('/api/trips/active').then(r => r.json()).then(trips => {
+                const container = document.getElementById('routeDetailsList');
+                routeLayers.forEach(l => adminMap.removeLayer(l)); routeLayers = [];
+                
+                if (trips.length === 0) { container.innerHTML = '<p class="text-muted text-center">Aktif rota yok. Optimizasyon yapın.</p>'; return; }
+                
+                container.innerHTML = trips.map((trip, i) => {
+                    const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
+                    const details = trip.route_details || {};
+                    const cargos = details.cargos || [];
+                    
+                    // A* yol çizimi (kuş uçuşu değil)
+                    if (trip.path_coordinates && trip.path_coordinates.length > 0) {
+                        const pathCoords = trip.path_coordinates;
+                        const latlngs = pathCoords.map(p => [p.lat, p.lng]);
+                        const polyline = L.polyline(latlngs, { color: color, weight: 5, opacity: 0.8, smoothFactor: 1 }).addTo(adminMap);
+                        routeLayers.push(polyline);
+                        
+                        // Durak noktalarını işaretle
+                        if (details.stations) {
+                            details.stations.forEach((station, idx) => {
+                                const icon = L.divIcon({
+                                    className: 'route-stop',
+                                    html: `<div style="background:${color};width:25px;height:25px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:12px;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);">${idx+1}</div>`,
+                                    iconSize: [25, 25], iconAnchor: [12, 12]
+                                });
+                                const marker = L.marker([station.lat, station.lng], { icon }).addTo(adminMap).bindPopup(`<strong>${station.name}</strong><br>Durak ${idx+1}`);
+                                routeLayers.push(marker);
+                            });
+                        }
+                    }
+                    
+                    return `<div class="route-detail-card" style="border-color: ${color}">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div><span class="vehicle-badge" style="background:${color}">${trip.vehicle?.name || 'Araç'}</span>
+                            <span class="badge bg-${trip.status === 'completed' ? 'success' : 'primary'} ms-2">${trip.status === 'planned' ? 'Planlandı' : trip.status === 'in_progress' ? 'Yolda' : 'Tamamlandı'}</span></div>
+                            <div class="text-end"><strong>${trip.total_cost?.toFixed(2)} ₺</strong><br><small class="text-muted">${trip.total_distance?.toFixed(1)} km</small></div>
+                        </div>
+                        <div class="row mb-3 text-center">
+                            <div class="col-3"><div class="h5 mb-0">${trip.cargo_count || 0}</div><small class="text-muted">Kargo</small></div>
+                            <div class="col-3"><div class="h5 mb-0">${trip.total_weight?.toFixed(0) || 0} kg</div><small class="text-muted">Ağırlık</small></div>
+                            <div class="col-3"><div class="h5 mb-0">${trip.fuel_cost?.toFixed(2)} ₺</div><small class="text-muted">Yakıt</small></div>
+                            <div class="col-3"><div class="h5 mb-0">${trip.rental_cost?.toFixed(2) || 0} ₺</div><small class="text-muted">Kiralama</small></div>
+                        </div>
+                        <div class="mb-2"><strong>Rota:</strong> İzmit (Depo) → ${(details.stations || []).map(s => s.name).join(' → ')} → İzmit</div>
+                        <div class="mt-3"><strong>Kargolar ve Kullanıcılar:</strong>
+                            ${cargos.length > 0 ? cargos.map(c => `<div class="cargo-list-item mt-2"><div><i class="bi bi-person"></i> ${c.sender} → ${c.receiver}<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${c.destination}</small></div><span class="badge bg-secondary">${c.weight} kg</span></div>`).join('') : '<p class="text-muted mt-2">Kargo bilgisi yok</p>'}
+                        </div>
+                    </div>`;
+                }).join('');
+                
+                // Harita sınırlarını ayarla
+                if (routeLayers.length > 0) {
+                    const bounds = [];
+                    routeLayers.forEach(layer => {
+                        if (layer.getLatLng) bounds.push(layer.getLatLng());
+                        else if (layer.getLatLngs) layer.getLatLngs().forEach(ll => bounds.push(ll));
+                    });
+                    if (bounds.length > 0) adminMap.fitBounds(bounds, { padding: [30, 30] });
+                }
+            });
+        }
+
+        function loadTrips() {
+            fetch('/api/trips').then(r => r.json()).then(trips => {
+                document.getElementById('tripsTableBody').innerHTML = trips.map(t => `
+                    <tr><td>${t.id}</td><td><strong>${t.vehicle?.name || '-'}</strong></td><td>${t.date || '-'}</td><td>${t.cargo_count || 0}</td><td>${t.total_weight?.toFixed(0) || 0} kg</td><td>${t.total_distance?.toFixed(1) || 0} km</td><td>${t.fuel_cost?.toFixed(2) || 0} ₺</td><td>${t.rental_cost?.toFixed(2) || 0} ₺</td><td><strong>${t.total_cost?.toFixed(2) || 0} ₺</strong></td>
+                    <td><span class="badge bg-${t.status === 'completed' ? 'success' : t.status === 'in_progress' ? 'warning' : 'primary'}">${t.status === 'planned' ? 'Planlandı' : t.status === 'in_progress' ? 'Yolda' : 'Tamamlandı'}</span></td>
+                    <td>${t.status === 'planned' ? `<button class="btn btn-sm btn-success" onclick="startTrip(${t.id})"><i class="bi bi-play"></i></button>` : ''}</td></tr>
+                `).join('');
+            });
+        }
+
+        function startTrip(id) { fetch(`/api/trips/${id}/start`, { method: 'POST' }).then(() => loadTrips()); }
+
+        function optimizeRoutes() {
+            const date = document.getElementById('optimizeDate')?.value || new Date().toISOString().split('T')[0];
+            const resultDiv = document.getElementById('optimizationResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">Genetik Algoritma çalışıyor...</p></div>';
+            
+            fetch('/api/routes/optimize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date }) })
+            .then(r => r.json()).then(data => {
+                if (data.message) { resultDiv.innerHTML = `<div class="alert alert-warning">${data.message}</div>`; return; }
+                resultDiv.innerHTML = `<div class="optimization-result"><h5 class="mb-3"><i class="bi bi-check-circle"></i> Tamamlandı!</h5><div class="row text-center"><div class="col-6"><div class="h3">${data.total_cost.toFixed(2)} ₺</div><small>Toplam Maliyet</small></div><div class="col-6"><div class="h3">${data.routes?.length || 0}</div><small>Rota</small></div></div><hr style="border-color:rgba(255,255,255,0.2)"><div class="row text-center"><div class="col-4"><small>Yakıt: ${data.fuel_cost.toFixed(2)} ₺</small></div><div class="col-4"><small>Kiralama: ${data.rental_cost.toFixed(2)} ₺</small></div><div class="col-4"><small>Kiralık: ${data.rented_vehicles}</small></div></div></div>`;
+                loadRouteDetails(); loadDashboardData(); loadTrips(); refreshMap();
+            }).catch(err => { resultDiv.innerHTML = `<div class="alert alert-danger">Hata: ${err.message}</div>`; });
+        }
+
+        function refreshMap() { routeLayers.forEach(l => adminMap.removeLayer(l)); routeLayers = []; loadRouteDetails(); }
+
+        function loadScenarioSummary() {
+            fetch('/api/analytics/scenario-summary').then(r => r.json()).then(scenarios => {
+                document.getElementById('scenarioSummaryTable').innerHTML = `<div class="table-responsive"><table class="table"><thead><tr><th>Senaryo</th><th>Açıklama</th><th>Kargo</th><th>Ağırlık</th><th>Kiralık?</th><th>Zorluk</th></tr></thead><tbody>${scenarios.map(s => `<tr><td><strong>${s.name}</strong></td><td>${s.description}</td><td>${s.cargo_count}</td><td>${s.estimated_weight} kg</td><td>${s.rental_expected ? '<span class="badge bg-warning">Evet</span>' : '<span class="badge bg-success">Hayır</span>'}</td><td>${s.difficulty}</td></tr>`).join('')}</tbody></table></div>`;
+            });
+        }
+
+        function runScenario(scenarioId) {
+            const resultDiv = document.getElementById('scenarioResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="card"><div class="card-body text-center"><div class="spinner-border text-primary"></div><p class="mt-2">Senaryo çalıştırılıyor...</p></div></div>';
+            
+            fetch(`/api/scenarios/test/${scenarioId}`, { method: 'POST' }).then(r => r.json()).then(data => {
+                resultDiv.innerHTML = `<div class="card"><div class="card-header bg-primary text-white"><i class="bi bi-clipboard-data"></i> ${data.scenario_name}</div><div class="card-body">
+                    <p class="text-muted">${data.scenario_description}</p>
+                    <div class="row mb-4">
+                        <div class="col-md-3"><div class="stat-card primary"><div class="number">${data.total_cargo_weight} kg</div><small>Toplam Yük</small></div></div>
+                        <div class="col-md-3"><div class="stat-card success"><div class="number">${data.total_capacity} kg</div><small>Kapasite</small></div></div>
+                        <div class="col-md-3"><div class="stat-card warning"><div class="number">${data.total_distance.toFixed(1)} km</div><small>Mesafe</small></div></div>
+                        <div class="col-md-3"><div class="stat-card danger"><div class="number">${data.total_cost.toFixed(2)} ₺</div><small>Maliyet</small></div></div>
+                    </div>
+                    ${data.rental_needed ? `<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Kapasite aşımı! ${data.rental_vehicles_count} kiralık araç. Kiralama: ${data.rental_cost} ₺</div>` : ''}
+                    <h6>Rota Detayları</h6>
+                    <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Araç</th><th>Kapasite</th><th>Yük</th><th>Rota</th><th>Mesafe</th><th>Maliyet</th></tr></thead><tbody>${data.routes.map(r => `<tr><td>${r.vehicle} ${r.is_rental ? '🚛' : ''}</td><td>${r.capacity} kg</td><td>${r.load} kg</td><td><small>${r.route.join(' → ')}</small></td><td>${r.distance.toFixed(1)} km</td><td>${r.cost.toFixed(2)} ₺</td></tr>`).join('')}</tbody></table></div>
+                    <div class="mt-3 p-3 bg-light rounded"><strong>Verimlilik:</strong> ${data.efficiency}%</div>
+                </div></div>`;
+                loadDashboardData(); loadTrips();
+            });
+        }
+
+        function loadAnalytics() {
+            fetch('/api/analytics/cost-breakdown').then(r => r.json()).then(data => {
+                new Chart(document.getElementById('costAnalysisChart').getContext('2d'), {
+                    type: 'bar', data: { labels: ['Yakıt', 'Kiralama', 'Toplam'], datasets: [{ label: 'Maliyet (₺)', data: [data.fuel_cost, data.rental_cost, data.total_cost], backgroundColor: ['#3498db', '#e74c3c', '#27ae60'] }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+                });
+            });
+            fetch('/api/analytics/summary').then(r => r.json()).then(data => {
+                new Chart(document.getElementById('efficiencyChart').getContext('2d'), {
+                    type: 'doughnut', data: { labels: ['Teslim', 'Yolda', 'Bekleyen'], datasets: [{ data: [data.delivered_cargos, data.in_transit, data.pending_cargos], backgroundColor: ['#27ae60', '#3498db', '#f39c12'] }] }
+                });
+                const rate = data.total_cargos > 0 ? ((data.delivered_cargos / data.total_cargos) * 100).toFixed(1) : 0;
+                document.getElementById('analyticsTable').innerHTML = `<tr><td>Toplam Kargo</td><td>${data.total_cargos}</td><td><span class="badge bg-primary">Veri</span></td></tr><tr><td>Teslimat Oranı</td><td>${rate}%</td><td><span class="badge bg-${rate > 80 ? 'success' : rate > 50 ? 'warning' : 'danger'}">${rate > 80 ? 'İyi' : rate > 50 ? 'Orta' : 'Düşük'}</span></td></tr><tr><td>Toplam Mesafe</td><td>${data.total_distance.toFixed(1)} km</td><td><span class="badge bg-info">Veri</span></td></tr><tr><td>Toplam Maliyet</td><td>${data.total_cost.toFixed(2)} ₺</td><td><span class="badge bg-secondary">Veri</span></td></tr>`;
+            });
+        }
+    </script>
+</body>
+</html>
