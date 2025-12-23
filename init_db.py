@@ -62,7 +62,7 @@ def init_database(force_reset=False):
                 {'name': 'Karamürsel', 'latitude': 40.6917, 'longitude': 29.6167, 'is_depot': False},
                 {'name': 'Kandıra', 'latitude': 41.0706, 'longitude': 30.1528, 'is_depot': False},
                 {'name': 'Kartepe', 'latitude': 40.7389, 'longitude': 30.0378, 'is_depot': False},
-                {'name': 'Başiskele', 'latitude': 40.7244, 'longitude': 29.9097, 'is_depot': False}
+                {'name': 'Başiskele', 'latitude': 40.7381, 'longitude': 30.0001, 'is_depot': False}
             ]
             
             for d in districts:

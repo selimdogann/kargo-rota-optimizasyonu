@@ -19,7 +19,7 @@ const KOCAELI_DISTRICTS = {
     'Karamürsel': { lat: 40.6917, lng: 29.6167 },
     'Kandıra': { lat: 41.0706, lng: 30.1528 },
     'Kartepe': { lat: 40.7389, lng: 30.0378 },
-    'Başiskele': { lat: 40.7244, lng: 29.9097 }
+    'Başiskele': { lat: 40.7381, lng: 30.0001 }
 };
 
 // Harita yardımcı fonksiyonları
@@ -189,6 +189,62 @@ function showLoading(show = true) {
     }
 }
 
+// OSRM API ile gerçek yol rotası al
+async function getOSRMRoute(coordinates) {
+    // coordinates: [[lat, lng], [lat, lng], ...]
+    if (!coordinates || coordinates.length < 2) return null;
+    
+    // OSRM formatı: lng,lat;lng,lat;...
+    const coordString = coordinates.map(c => `${c[1]},${c[0]}`).join(';');
+    
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+            // GeoJSON koordinatlarını Leaflet formatına çevir [lng, lat] -> [lat, lng]
+            const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            return {
+                coordinates: routeCoords,
+                distance: data.routes[0].distance / 1000, // metre -> km
+                duration: data.routes[0].duration // saniye
+            };
+        }
+    } catch (error) {
+        console.error('OSRM routing error:', error);
+    }
+    return null;
+}
+
+// Çoklu nokta için OSRM rotası çiz (haritaya ekle)
+async function drawOSRMRoute(map, waypoints, color = '#3498db', weight = 5) {
+    const route = await getOSRMRoute(waypoints);
+    
+    if (route && route.coordinates.length > 0) {
+        const polyline = L.polyline(route.coordinates, {
+            color: color,
+            weight: weight,
+            opacity: 0.8,
+            smoothFactor: 1
+        }).addTo(map);
+        
+        return { polyline, distance: route.distance, duration: route.duration };
+    }
+    
+    // Fallback: OSRM başarısız olursa düz çizgi çiz
+    console.warn('OSRM failed, falling back to straight line');
+    const polyline = L.polyline(waypoints, {
+        color: color,
+        weight: weight,
+        opacity: 0.6,
+        dashArray: '10, 10'
+    }).addTo(map);
+    
+    return { polyline, distance: null, duration: null };
+}
+
 // Haversine mesafe hesaplama
 function haversineDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Dünya yarıçapı (km)
@@ -220,5 +276,7 @@ window.CargoSystem = {
     showNotification,
     showLoading,
     haversineDistance,
-    generateTrackingNumber
+    generateTrackingNumber,
+    getOSRMRoute,
+    drawOSRMRoute
 };

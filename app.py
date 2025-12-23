@@ -505,6 +505,54 @@ def get_cargo(id):
     return jsonify(cargo.to_dict())
 
 
+@app.route('/api/cargos/<int:id>', methods=['DELETE'])
+def delete_cargo(id):
+    """Tek bir kargoyu sil"""
+    cargo = Cargo.query.get_or_404(id)
+    
+    db.session.delete(cargo)
+    db.session.commit()
+    return jsonify({'message': 'Kargo başarıyla silindi', 'id': id})
+
+
+@app.route('/api/cargos/bulk-delete', methods=['POST'])
+def bulk_delete_cargos():
+    """Toplu kargo silme"""
+    data = request.json
+    cargo_ids = data.get('ids', [])
+    
+    if not cargo_ids:
+        return jsonify({'error': 'Silinecek kargo seçilmedi'}), 400
+    
+    deleted_count = 0
+    errors = []
+    
+    for cargo_id in cargo_ids:
+        cargo = Cargo.query.get(cargo_id)
+        if cargo:
+            db.session.delete(cargo)
+            deleted_count += 1
+        else:
+            errors.append(f'Kargo #{cargo_id} bulunamadı')
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': f'{deleted_count} kargo silindi',
+        'deleted_count': deleted_count,
+        'errors': errors
+    })
+
+
+@app.route('/api/cargos/delete-all', methods=['DELETE'])
+def delete_all_cargos():
+    """Tüm kargoları sil (dikkatli kullanın!)"""
+    count = Cargo.query.count()
+    Cargo.query.delete()
+    db.session.commit()
+    return jsonify({'message': f'Tüm kargolar silindi ({count} adet)'})
+
+
 @app.route('/api/cargos/track/<int:id>', methods=['GET'])
 def track_cargo(id):
     """Kargo takibi"""
@@ -1451,7 +1499,7 @@ def init_db():
                 {'name': 'Karamürsel', 'lat': 40.6917, 'lng': 29.6167, 'is_depot': False},
                 {'name': 'Kandıra', 'lat': 41.0711, 'lng': 30.1528, 'is_depot': False},
                 {'name': 'Kartepe', 'lat': 40.7333, 'lng': 30.0333, 'is_depot': False},
-                {'name': 'Başiskele', 'lat': 40.7208, 'lng': 29.9361, 'is_depot': False},
+                {'name': 'Başiskele', 'lat': 40.7381, 'lng': 30.0001, 'is_depot': False},
             ]
             
             for district in kocaeli_districts:
