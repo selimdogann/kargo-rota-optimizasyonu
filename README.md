@@ -1,16 +1,46 @@
-# Kocaeli Kargo Dağıtım Sistemi
+# Kocaeli Üniversitesi Kargo Dağıtım Sistemi
 
-Flask tabanlı, Genetik Algoritma kullanan kargo dağıtım optimizasyon sistemi.
+**Kocaeli'nin ilçelerinden Kocaeli Üniversitesi'ne** gelen kargo araçları için yük ve rota planlaması yapan Flask tabanlı, Genetik Algoritma kullanan kargo dağıtım optimizasyon sistemi.
+
+## 🎯 Proje Amacı
+
+Bu sistem, Kocaeli'nin 12 ilçesinden **Kocaeli Üniversitesi (Umuttepe Kampüsü)**'ne kargo taşımacılığı için:
+- Optimal rota planlaması
+- Araç kapasite-maliyet optimizasyonu
+- Yakıt tüketimi ve kiralama maliyeti hesaplaması
+- Dinamik sefer yönetimi
+
+işlemlerini gerçekleştirir.
 
 ## 🚀 Özellikler
 
 - **Genetik Algoritma (GA)** ile CVRP (Capacitated Vehicle Routing Problem) çözümü
-- **A\* Algoritması** ile yol bulucu
+- **A\* Algoritması** ile yol bulucu (kuş uçuşu değil, gerçek yol ağı)
 - **Knapsack Optimizasyonu** ile araç yükleme
-- **Leaflet.js** ile interaktif harita (OpenStreetMap)
+- **Leaflet.js** ile interaktif harita (OpenStreetMap - harici API kullanılmaz)
 - Kullanıcı ve Yönetici panelleri
 - 4 farklı test senaryosu
-- Kiralık araç desteği
+- Kiralık araç desteği (kapasite aşımı durumunda)
+- Sefer kayıtlarının anlık tutulması
+- Kullanıcıya sadece kendi kargosunun aracının güzergahının gösterilmesi
+
+## 📍 İstasyonlar (Kocaeli İlçeleri)
+
+| İstasyon | Tip | Koordinat |
+|----------|-----|-----------|
+| **Kocaeli Üniversitesi** | Ana Depo | 40.8225, 29.9213 |
+| Başiskele | İlçe | 40.7244, 29.9097 |
+| Çayırova | İlçe | 40.8267, 29.3728 |
+| Darıca | İlçe | 40.7694, 29.3753 |
+| Derince | İlçe | 40.7544, 29.8389 |
+| Dilovası | İlçe | 40.7847, 29.5369 |
+| Gebze | İlçe | 40.8027, 29.4307 |
+| Gölcük | İlçe | 40.7175, 29.8306 |
+| İzmit | İlçe | 40.7656, 29.9406 |
+| Kandıra | İlçe | 41.0706, 30.1528 |
+| Karamürsel | İlçe | 40.6917, 29.6167 |
+| Kartepe | İlçe | 40.7389, 30.0378 |
+| Körfez | İlçe | 40.7539, 29.7636 |
 
 ## 📋 Gereksinimler
 

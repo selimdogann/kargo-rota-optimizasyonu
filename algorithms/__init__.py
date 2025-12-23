@@ -6,11 +6,10 @@ from .genetic_algorithm import GeneticAlgorithmCVRP, KnapsackOptimizer
 from .distance_calculator import (
     haversine_distance,
     road_distance,
-    update_distance_matrix,
-    get_distance_matrix,
-    AStarPathfinder,
-    RoadNetworkBuilder,
-    calculate_route_path
+    get_path_coordinates,
+    calculate_route_with_coordinates,
+    get_network,
+    KocaeliRoadNetwork
 )
 from .scenarios import run_scenario
 
@@ -19,10 +18,9 @@ __all__ = [
     'KnapsackOptimizer',
     'haversine_distance',
     'road_distance',
-    'update_distance_matrix',
-    'get_distance_matrix',
-    'AStarPathfinder',
-    'RoadNetworkBuilder',
-    'calculate_route_path',
+    'get_path_coordinates',
+    'calculate_route_with_coordinates',
+    'get_network',
+    'KocaeliRoadNetwork',
     'run_scenario'
 ]

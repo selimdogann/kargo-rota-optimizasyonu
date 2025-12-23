@@ -6,6 +6,8 @@ CVRP (Capacitated Vehicle Routing Problem) çözümü için Genetik Algoritma ku
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from functools import wraps
+import hashlib
 import os
 
 app = Flask(__name__)
@@ -15,7 +17,54 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+
+# ==================== YARDIMCI FONKSİYONLAR ====================
+
+def hash_password(password):
+    """Şifreyi SHA256 ile hashle"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def login_required(f):
+    """Admin girişi gerektiren decorator"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'admin_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 # ==================== VERİTABANI MODELLERİ ====================
+
+class Admin(db.Model):
+    """Yönetici modeli"""
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    full_name = db.Column(db.String(100), nullable=True)
+    email = db.Column(db.String(120), nullable=True)
+    is_superadmin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime, nullable=True)
+    
+    def set_password(self, password):
+        self.password_hash = hash_password(password)
+    
+    def check_password(self, password):
+        return self.password_hash == hash_password(password)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'full_name': self.full_name,
+            'email': self.email,
+            'is_superadmin': self.is_superadmin,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
+
 
 class Station(db.Model):
     """İstasyon/İlçe modeli"""
@@ -59,14 +108,20 @@ class Vehicle(db.Model):
 
 
 class Cargo(db.Model):
-    """Kargo modeli"""
+    """
+    Kargo modeli
+    NOT: Tüm kargolar ilçelerden Kocaeli Üniversitesi'ne gönderilir.
+    source_station_id = Kargonun gönderildiği ilçe
+    dest_station_id = Her zaman Kocaeli Üniversitesi (depo)
+    """
     id = db.Column(db.Integer, primary_key=True)
-    sender_name = db.Column(db.String(100), nullable=False)
-    receiver_name = db.Column(db.String(100), nullable=False)
+    sender_name = db.Column(db.String(100), nullable=False)  # Gönderen adı
+    receiver_name = db.Column(db.String(100), nullable=False)  # Alıcı adı (Üniversitedeki)
     weight = db.Column(db.Float, nullable=False)  # kg cinsinden ağırlık
-    source_station_id = db.Column(db.Integer, db.ForeignKey('station.id'), nullable=False)
-    dest_station_id = db.Column(db.Integer, db.ForeignKey('station.id'), nullable=False)
-    status = db.Column(db.String(50), default='pending')  # pending, in_transit, delivered
+    source_station_id = db.Column(db.Integer, db.ForeignKey('station.id'), nullable=False)  # Kaynak ilçe
+    dest_station_id = db.Column(db.Integer, db.ForeignKey('station.id'), nullable=False)  # Hedef (Kocaeli Üni)
+    status = db.Column(db.String(50), default='pending')  # pending, accepted, rejected, in_transit, delivered
+    is_accepted = db.Column(db.Boolean, default=True)  # Kargo kabul edildi mi?
     vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     delivery_date = db.Column(db.Date, nullable=True)
@@ -84,6 +139,7 @@ class Cargo(db.Model):
             'source_station': self.source_station.to_dict() if self.source_station else None,
             'dest_station': self.dest_station.to_dict() if self.dest_station else None,
             'status': self.status,
+            'is_accepted': self.is_accepted,
             'vehicle_id': self.vehicle_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'delivery_date': self.delivery_date.isoformat() if self.delivery_date else None
@@ -179,16 +235,126 @@ def index():
     return render_template('index.html')
 
 
+# Login sayfası
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        admin = Admin.query.filter_by(username=username).first()
+        
+        if admin and admin.check_password(password):
+            session['admin_id'] = admin.id
+            session['admin_username'] = admin.username
+            session['is_superadmin'] = admin.is_superadmin
+            admin.last_login = datetime.utcnow()
+            db.session.commit()
+            return redirect(url_for('admin_panel'))
+        
+        return render_template('login.html', error='Kullanıcı adı veya şifre hatalı!')
+    
+    return render_template('login.html')
+
+
+# Logout
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
 # Kullanıcı paneli
 @app.route('/user')
 def user_panel():
     return render_template('user_panel.html')
 
 
-# Yönetici paneli
+# Yönetici paneli (korumalı)
 @app.route('/admin')
+@login_required
 def admin_panel():
-    return render_template('admin_panel.html')
+    admin = Admin.query.get(session.get('admin_id'))
+    return render_template('admin_panel.html', admin=admin)
+
+
+# ==================== ADMİN YÖNETİMİ API ====================
+
+@app.route('/api/admins', methods=['GET'])
+@login_required
+def get_admins():
+    """Tüm adminleri getir (sadece superadmin)"""
+    if not session.get('is_superadmin'):
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    admins = Admin.query.all()
+    return jsonify([a.to_dict() for a in admins])
+
+
+@app.route('/api/admins', methods=['POST'])
+@login_required
+def add_admin():
+    """Yeni admin ekle (sadece superadmin)"""
+    if not session.get('is_superadmin'):
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
+    data = request.get_json()
+    
+    if Admin.query.filter_by(username=data['username']).first():
+        return jsonify({'error': 'Bu kullanıcı adı zaten kullanılıyor'}), 400
+    
+    admin = Admin(
+        username=data['username'],
+        full_name=data.get('full_name', ''),
+        email=data.get('email', ''),
+        is_superadmin=data.get('is_superadmin', False)
+    )
+    admin.set_password(data['password'])
+    
+    db.session.add(admin)
+    db.session.commit()
+    
+    return jsonify(admin.to_dict()), 201
+
+
+@app.route('/api/admins/<int:admin_id>', methods=['DELETE'])
+@login_required
+def delete_admin(admin_id):
+    """Admin sil (sadece superadmin)"""
+    if not session.get('is_superadmin'):
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
+    if admin_id == session.get('admin_id'):
+        return jsonify({'error': 'Kendinizi silemezsiniz'}), 400
+    
+    admin = Admin.query.get_or_404(admin_id)
+    db.session.delete(admin)
+    db.session.commit()
+    
+    return jsonify({'message': 'Admin silindi'})
+
+
+@app.route('/api/admins/change-password', methods=['POST'])
+@login_required
+def change_password():
+    """Şifre değiştir"""
+    data = request.get_json()
+    admin = Admin.query.get(session.get('admin_id'))
+    
+    if not admin.check_password(data['current_password']):
+        return jsonify({'error': 'Mevcut şifre hatalı'}), 400
+    
+    admin.set_password(data['new_password'])
+    db.session.commit()
+    
+    return jsonify({'message': 'Şifre değiştirildi'})
+
+
+@app.route('/api/current-admin', methods=['GET'])
+@login_required
+def get_current_admin():
+    """Giriş yapmış admin bilgisi"""
+    admin = Admin.query.get(session.get('admin_id'))
+    return jsonify(admin.to_dict())
 
 
 # ==================== İSTASYON API ====================
@@ -212,10 +378,6 @@ def add_station():
     )
     db.session.add(station)
     db.session.commit()
-    
-    # Mesafe matrisini güncelle
-    from algorithms.distance_calculator import update_distance_matrix
-    update_distance_matrix(db, Station, DistanceMatrix)
     
     return jsonify(station.to_dict()), 201
 
@@ -272,15 +434,64 @@ def get_pending_cargos():
 
 @app.route('/api/cargos', methods=['POST'])
 def add_cargo():
-    """Yeni kargo ekle"""
+    """
+    Yeni kargo ekle
+    
+    SENARYO: Kocaeli ilçelerinden Kocaeli Üniversitesi'ne kargo gönderimi
+    - Kaynak (source): İlçe seçilir
+    - Hedef (dest): Her zaman Kocaeli Üniversitesi (otomatik)
+    """
     data = request.json
+    
+    # Validasyon: Gönderici ve alıcı adı zorunlu
+    if not data.get('sender_name') or not data.get('sender_name').strip():
+        return jsonify({'error': 'Gönderici adı zorunludur'}), 400
+    if not data.get('receiver_name') or not data.get('receiver_name').strip():
+        return jsonify({'error': 'Alıcı adı (Üniversitedeki) zorunludur'}), 400
+    
+    # Validasyon: Ağırlık pozitif olmalı
+    weight = data.get('weight')
+    if not weight or float(weight) <= 0:
+        return jsonify({'error': 'Kargo ağırlığı pozitif bir sayı olmalıdır'}), 400
+    if float(weight) > 1000:
+        return jsonify({'error': 'Maksimum kargo ağırlığı 1000 kg olabilir'}), 400
+    
+    # Validasyon: Kaynak istasyon (ilçe) tanımlı olmalı
+    source_station_id = data.get('source_station_id')
+    if not source_station_id:
+        return jsonify({'error': 'Kargonun gönderileceği ilçe seçilmelidir'}), 400
+    source_station = Station.query.get(source_station_id)
+    if not source_station:
+        return jsonify({'error': 'Geçersiz ilçe. Tanımlı bir ilçe seçiniz.'}), 400
+    if source_station.is_depot:
+        return jsonify({'error': 'Kaynak olarak Kocaeli Üniversitesi seçilemez. Bir ilçe seçiniz.'}), 400
+    
+    # Hedef her zaman Kocaeli Üniversitesi (depo)
+    depot = Station.query.filter_by(is_depot=True).first()
+    if not depot:
+        return jsonify({'error': 'Sistem hatası: Kocaeli Üniversitesi tanımlı değil'}), 500
+    
+    dest_station_id = depot.id
+    
+    # Validasyon: Teslimat tarihi geçmiş olamaz
+    delivery_date = None
+    if data.get('delivery_date'):
+        try:
+            delivery_date = datetime.strptime(data['delivery_date'], '%Y-%m-%d').date()
+            from datetime import date
+            if delivery_date < date.today():
+                return jsonify({'error': 'Teslimat tarihi bugünden önce olamaz'}), 400
+        except ValueError:
+            return jsonify({'error': 'Geçersiz tarih formatı. YYYY-MM-DD formatında giriniz.'}), 400
+    
     cargo = Cargo(
-        sender_name=data['sender_name'],
-        receiver_name=data['receiver_name'],
-        weight=data['weight'],
-        source_station_id=data['source_station_id'],
-        dest_station_id=data['dest_station_id'],
-        delivery_date=datetime.strptime(data['delivery_date'], '%Y-%m-%d').date() if data.get('delivery_date') else None
+        sender_name=data['sender_name'].strip(),
+        receiver_name=data['receiver_name'].strip(),
+        weight=float(weight),
+        source_station_id=source_station_id,
+        dest_station_id=dest_station_id,  # Her zaman Kocaeli Üniversitesi
+        is_accepted=True,
+        delivery_date=delivery_date
     )
     db.session.add(cargo)
     db.session.commit()
@@ -300,12 +511,11 @@ def track_cargo(id):
     cargo = Cargo.query.get_or_404(id)
     result = cargo.to_dict()
     
-    # Eğer araç atanmışsa, rota bilgisini de ekle
+    # Eğer araç atanmışsa, rota bilgisini de ekle (planned veya in_progress)
     if cargo.vehicle_id:
         route = Route.query.filter_by(
-            vehicle_id=cargo.vehicle_id,
-            status='in_progress'
-        ).first()
+            vehicle_id=cargo.vehicle_id
+        ).filter(Route.status.in_(['planned', 'in_progress'])).order_by(Route.date.desc()).first()
         if route:
             result['route'] = route.to_dict()
     
@@ -330,16 +540,35 @@ def get_active_routes():
 
 @app.route('/api/routes/optimize', methods=['POST'])
 def optimize_routes():
-    """Genetik Algoritma ile rota optimizasyonu yap"""
+    """
+    Genetik Algoritma ile rota optimizasyonu
+    
+    SENARYO: Kocaeli ilçelerinden Kocaeli Üniversitesi'ne kargo toplama
+    
+    İKİ PROBLEM:
+    1. SINIRSIZ ARAÇ PROBLEMİ (unlimited_vehicles):
+       - Minimum maliyetle kaç araç ile taşıma tamamlanabilir?
+       - Tüm kargolar kabul edilir
+       - Kapasite aşılırsa araç kiralanır (200 birim/500kg)
+       - Hedef: Toplam taşıma maliyetini minimize et
+       
+    2. BELİRLİ SAYIDA ARAÇ PROBLEMİ (fixed_vehicles):
+       - Minimum maliyet, maksimum kargo güzergahı
+       - Kapasite aşılırsa bazı kargolar reddedilir
+       - max_count: Maksimum kargo SAYISI (önce hafif kargolar)
+       - max_weight: Maksimum kargo AĞIRLIĞI (önce ağır kargolar)
+    """
     from algorithms.genetic_algorithm import GeneticAlgorithmCVRP
-    from algorithms.distance_calculator import get_distance_matrix, generate_path_between_stations
+    from algorithms.distance_calculator import road_distance, calculate_route_with_coordinates, get_network
     import json
     from datetime import date
     
     data = request.json
     target_date = datetime.strptime(data.get('date', date.today().isoformat()), '%Y-%m-%d').date()
+    optimization_mode = data.get('mode', 'unlimited_vehicles')
+    max_criteria = data.get('accept_criteria', 'max_weight')
     
-    # Hedef tarihe göre bekleyen kargoları al (bir sonraki gün için)
+    # Bekleyen kargoları al
     pending_cargos = Cargo.query.filter(
         (Cargo.status == 'pending') &
         ((Cargo.delivery_date == None) | (Cargo.delivery_date <= target_date))
@@ -348,59 +577,115 @@ def optimize_routes():
     if not pending_cargos:
         return jsonify({'message': 'Bekleyen kargo yok'}), 400
     
-    # İstasyon bazlı kargo özeti
+    # İstasyon bazlı kargo özeti (KAYNAK istasyona göre - ilçeler)
     station_summary = {}
     for cargo in pending_cargos:
-        dest_id = cargo.dest_station_id
-        if dest_id not in station_summary:
-            station_summary[dest_id] = {'count': 0, 'weight': 0, 'cargos': []}
-        station_summary[dest_id]['count'] += 1
-        station_summary[dest_id]['weight'] += cargo.weight
-        station_summary[dest_id]['cargos'].append(cargo)
+        source_id = cargo.source_station_id
+        if source_id not in station_summary:
+            station_summary[source_id] = {'count': 0, 'weight': 0, 'cargos': []}
+        station_summary[source_id]['count'] += 1
+        station_summary[source_id]['weight'] += cargo.weight
+        station_summary[source_id]['cargos'].append(cargo)
     
-    # Mevcut araçları al
-    vehicles = Vehicle.query.filter_by(is_available=True, is_rental=False).all()
-    own_vehicles = list(vehicles)
+    # Mevcut araçları al (kiralık olmayanlar)
+    own_vehicles = Vehicle.query.filter_by(is_available=True, is_rental=False).all()
+    vehicles_to_use = list(own_vehicles)
     
     # İstasyonları al
     stations = Station.query.all()
     depot = Station.query.filter_by(is_depot=True).first()
     
     if not depot:
-        return jsonify({'message': 'Depo istasyonu bulunamadı'}), 400
+        return jsonify({'message': 'Depo (Kocaeli Üniversitesi) bulunamadı'}), 400
     
-    # Mesafe matrisini al
-    distance_matrix = get_distance_matrix(db, Station, DistanceMatrix)
+    # Mesafe matrisini yol ağı üzerinden dinamik hesapla
+    distance_matrix = {}
+    for s1 in stations:
+        distance_matrix[s1.id] = {}
+        for s2 in stations:
+            if s1.id == s2.id:
+                distance_matrix[s1.id][s2.id] = 0
+            else:
+                distance_matrix[s1.id][s2.id] = road_distance(
+                    (s1.latitude, s1.longitude),
+                    (s2.latitude, s2.longitude)
+                )
     
-    # Toplam kargo ağırlığını hesapla
+    # Toplam bilgiler
     total_weight = sum(c.weight for c in pending_cargos)
+    total_count = len(pending_cargos)
     total_capacity = sum(v.capacity for v in own_vehicles)
     
-    # Kapasite yetersizse kiralık araç ekle
     rental_vehicles = []
-    if total_weight > total_capacity:
-        needed_capacity = total_weight - total_capacity
-        rental_count = int(needed_capacity / 500) + 1  # Her kiralık araç 500kg
+    accepted_cargos = list(pending_cargos)
+    rejected_cargos = []
+    
+    # ==================== SENARYO 1: SINIRSIZ ARAÇ PROBLEMİ ====================
+    # Minimum maliyetle kaç araç ile taşıma tamamlanabilir?
+    if optimization_mode == 'unlimited_vehicles':
+        # Kapasite yetersizse kiralık araç ekle
+        if total_weight > total_capacity:
+            needed_capacity = total_weight - total_capacity
+            rental_count = int(needed_capacity / 500) + 1  # Her kiralık araç 500kg
+            
+            for i in range(rental_count):
+                rental = Vehicle(
+                    name=f'Kiralık Araç {i+1} (500kg)',
+                    capacity=500,
+                    cost_per_km=1.0,  # Yol maliyeti: 1 birim/km
+                    is_rental=True,
+                    rental_cost=200  # Kiralama maliyeti: 200 birim
+                )
+                db.session.add(rental)
+                rental_vehicles.append(rental)
+            
+            db.session.flush()
+            vehicles_to_use.extend(rental_vehicles)
         
-        for i in range(rental_count):
-            rental = Vehicle(
-                name=f'Kiralık Araç {i+1}',
-                capacity=500,
-                cost_per_km=1.0,
-                is_rental=True,
-                rental_cost=200
-            )
-            db.session.add(rental)
-            rental_vehicles.append(rental)
-        
-        db.session.commit()
-        own_vehicles.extend(rental_vehicles)
+        # Tüm kargolar kabul edilir
+        accepted_cargos = list(pending_cargos)
+        for cargo in accepted_cargos:
+            cargo.is_accepted = True
+    
+    # ==================== SENARYO 2: BELİRLİ SAYIDA ARAÇ PROBLEMİ ====================
+    # Minimum maliyet, maksimum kargo güzergahı - hangi kargolar kabul edilsin?
+    elif optimization_mode == 'fixed_vehicles':
+        if total_weight <= total_capacity:
+            # Kapasite yeterli - tüm kargolar kabul
+            accepted_cargos = list(pending_cargos)
+            for cargo in accepted_cargos:
+                cargo.is_accepted = True
+        else:
+            # Kapasite yetersiz - kargo seçimi yap
+            if max_criteria == 'max_count':
+                # Maksimum kargo SAYISI - Önce en hafif kargoları al (daha fazla kargo sığar)
+                sorted_cargos = sorted(pending_cargos, key=lambda c: c.weight)
+            else:  # max_weight
+                # Maksimum kargo AĞIRLIĞI - Önce en ağır kargoları al
+                sorted_cargos = sorted(pending_cargos, key=lambda c: c.weight, reverse=True)
+            
+            # Kapasiteye sığacak kadar kargo seç
+            current_weight = 0
+            accepted_cargos = []
+            
+            for cargo in sorted_cargos:
+                if current_weight + cargo.weight <= total_capacity:
+                    accepted_cargos.append(cargo)
+                    cargo.is_accepted = True
+                    current_weight += cargo.weight
+                else:
+                    rejected_cargos.append(cargo)
+                    cargo.is_accepted = False
+                    cargo.status = 'rejected'
+    
+    if not accepted_cargos:
+        return jsonify({'message': 'Kabul edilebilecek kargo yok'}), 400
     
     # Genetik Algoritma ile optimizasyon
     ga = GeneticAlgorithmCVRP(
         stations=stations,
-        vehicles=own_vehicles,
-        cargos=pending_cargos,
+        vehicles=vehicles_to_use,
+        cargos=accepted_cargos,
         depot=depot,
         distance_matrix=distance_matrix
     )
@@ -420,28 +705,35 @@ def optimize_routes():
         route_distance = ga.calculate_route_distance(route_stations)
         route_cost = ga.calculate_route_cost(vehicle, route_stations)
         
-        # A* ile yol koordinatlarını hesapla (kuş uçuşu değil)
-        path_coords = generate_path_between_stations(depot, route_stations, stations)
+        # A* ile yol koordinatlarını hesapla
+        route_coords = [(depot.latitude, depot.longitude)] + [(s.latitude, s.longitude) for s in route_stations]
+        route_result = calculate_route_with_coordinates(
+            route_coords[0],
+            route_coords[1:]
+        )
+        path_coords = route_result.get('coordinates', [])
         
-        # Rotadaki kargolar ve kullanıcılar
+        # Rotadaki kargolar (KAYNAK istasyona göre)
         route_cargos = []
         route_total_weight = 0
-        for cargo in pending_cargos:
-            if cargo.dest_station_id in route_station_ids:
+        for cargo in accepted_cargos:
+            if cargo.source_station_id in route_station_ids:
                 cargo.vehicle_id = vehicle_id
                 cargo.status = 'in_transit'
+                cargo.is_accepted = True
                 route_cargos.append({
                     'id': cargo.id,
                     'sender': cargo.sender_name,
                     'receiver': cargo.receiver_name,
                     'weight': cargo.weight,
-                    'destination': cargo.dest_station.name
+                    'source': cargo.source_station.name  # Kaynak ilçe
                 })
                 route_total_weight += cargo.weight
         
         # Rota detayları
         route_details = {
             'stations': [{'id': s.id, 'name': s.name, 'lat': s.latitude, 'lng': s.longitude} for s in route_stations],
+            'stops': [{'station_id': s.id, 'station_name': s.name, 'latitude': s.latitude, 'longitude': s.longitude} for s in route_stations],
             'cargos': route_cargos,
             'vehicle': vehicle.to_dict()
         }
@@ -456,7 +748,7 @@ def optimize_routes():
             status='planned'
         )
         db.session.add(route)
-        db.session.flush()  # ID almak için
+        db.session.flush()
         
         # Sefer kaydı
         fuel_cost = route_distance * vehicle.cost_per_km
@@ -485,13 +777,65 @@ def optimize_routes():
     
     # Sonuçları hazırla
     total_rental_cost = sum(v.rental_cost for v in rental_vehicles)
+    total_fuel_cost = sum(t.fuel_cost for t in created_trips)
+    total_distance = sum(t.total_distance for t in created_trips)
+    accepted_weight = sum(c.weight for c in accepted_cargos)
+    rejected_weight = sum(c.weight for c in rejected_cargos)
+    
+    # Kapasite kullanım oranı
+    used_capacity = sum(v.capacity for v in vehicles_to_use)
+    capacity_utilization = (accepted_weight / used_capacity * 100) if used_capacity > 0 else 0
+    
+    # Araç bazlı detaylar
+    vehicle_details = []
+    for trip in created_trips:
+        vehicle = Vehicle.query.get(trip.vehicle_id)
+        if vehicle:
+            vehicle_details.append({
+                'vehicle_name': vehicle.name,
+                'capacity': vehicle.capacity,
+                'load': trip.total_weight,
+                'utilization': round((trip.total_weight / vehicle.capacity * 100), 1) if vehicle.capacity > 0 else 0,
+                'distance': round(trip.total_distance, 2),
+                'fuel_cost': round(trip.fuel_cost, 2),
+                'rental_cost': round(trip.rental_cost, 2),
+                'total_cost': round(trip.total_cost, 2),
+                'cargo_count': trip.cargo_count,
+                'is_rental': vehicle.is_rental
+            })
+    
     result = {
-        'total_cost': best_cost,
-        'rental_cost': total_rental_cost,
-        'fuel_cost': best_cost - total_rental_cost,
+        'mode': optimization_mode,
+        'mode_description': 'Sınırsız Araç - Tüm kargolar taşınır' if optimization_mode == 'unlimited_vehicles' else 'Belirli Araç - Sabit filolar',
+        
+        # Maliyet bilgileri
+        'total_cost': round(best_cost, 2),
+        'fuel_cost': round(total_fuel_cost, 2),
+        'rental_cost': round(total_rental_cost, 2),
+        
+        # Mesafe bilgileri
+        'total_distance': round(total_distance, 2),
+        
+        # Araç bilgileri
+        'own_vehicles_count': len(own_vehicles),
+        'rented_vehicles': len(rental_vehicles),
+        'total_vehicles_used': len([t for t in created_trips if t.total_weight > 0]),
+        'total_capacity': used_capacity,
+        'capacity_utilization': round(capacity_utilization, 1),
+        
+        # Kargo bilgileri
+        'total_cargo_count': total_count,
+        'total_cargo_weight': total_weight,
+        'accepted_count': len(accepted_cargos),
+        'accepted_weight': accepted_weight,
+        'rejected_count': len(rejected_cargos),
+        'rejected_weight': rejected_weight,
+        
+        # Detaylı veriler
+        'vehicle_details': vehicle_details,
         'routes': [r.to_dict() for r in created_routes],
         'trips': [t.to_dict() for t in created_trips],
-        'rented_vehicles': len(rental_vehicles),
+        'rejected_cargo_list': [{'id': c.id, 'weight': c.weight, 'sender': c.sender_name, 'source': c.source_station.name if c.source_station else ''} for c in rejected_cargos],
         'station_summary': {str(k): {'count': v['count'], 'weight': v['weight']} for k, v in station_summary.items()}
     }
     
@@ -617,18 +961,16 @@ def get_cargo_route(cargo_id):
         vehicle = Vehicle.query.get(cargo.vehicle_id)
         
         # A* path'i oluştur
-        from algorithms.distance_calculator import generate_path_between_stations
+        from algorithms.distance_calculator import calculate_route_with_coordinates
         depot = Station.query.filter_by(is_depot=True).first()
-        all_stations = {s.id: {'id': s.id, 'name': s.name, 'latitude': s.latitude, 'longitude': s.longitude} 
-                       for s in Station.query.all()}
         
         path_coords = []
         if depot and stops:
-            path_coords = generate_path_between_stations(
-                {'latitude': depot.latitude, 'longitude': depot.longitude},
-                stops,
-                list(all_stations.values())
+            route_result = calculate_route_with_coordinates(
+                (depot.latitude, depot.longitude),
+                [(s['latitude'], s['longitude']) for s in stops]
             )
+            path_coords = route_result.get('coordinates', [])
         
         return jsonify({
             'cargo': cargo.to_dict(),
@@ -688,9 +1030,20 @@ def get_cargo_route(cargo_id):
 
 @app.route('/api/distance-matrix', methods=['GET'])
 def get_distance_matrix_api():
-    """Mesafe matrisini getir"""
-    from algorithms.distance_calculator import get_distance_matrix
-    matrix = get_distance_matrix(db, Station, DistanceMatrix)
+    """Mesafe matrisini getir - yol ağı üzerinden hesaplanır"""
+    from algorithms.distance_calculator import road_distance
+    stations = Station.query.all()
+    matrix = {}
+    for s1 in stations:
+        matrix[s1.id] = {}
+        for s2 in stations:
+            if s1.id == s2.id:
+                matrix[s1.id][s2.id] = 0
+            else:
+                matrix[s1.id][s2.id] = road_distance(
+                    (s1.latitude, s1.longitude),
+                    (s2.latitude, s2.longitude)
+                )
     return jsonify(matrix)
 
 
@@ -770,16 +1123,17 @@ def get_vehicle_breakdown():
 
 @app.route('/api/analytics/station-summary', methods=['GET'])
 def get_station_summary():
-    """İstasyon bazlı kargo özeti - Bir sonraki gün için planlama"""
-    from datetime import date, timedelta
-    tomorrow = date.today() + timedelta(days=1)
-    
-    stations = Station.query.all()
+    """
+    İstasyon bazlı kargo özeti
+    Kargolar ilçelerden (source) Üniversite'ye gönderiliyor
+    """
+    stations = Station.query.filter_by(is_depot=False).all()  # Sadece ilçeler
     result = []
     
     for station in stations:
+        # Kaynak istasyona göre bekleyen kargolar
         pending_cargos = Cargo.query.filter(
-            (Cargo.dest_station_id == station.id) &
+            (Cargo.source_station_id == station.id) &
             (Cargo.status == 'pending')
         ).all()
         
@@ -793,22 +1147,285 @@ def get_station_summary():
     return jsonify(result)
 
 
+# ==================== PARAMETRE API ====================
+
+@app.route('/api/parameters', methods=['GET'])
+def get_parameters():
+    """
+    Sistem parametrelerini getir
+    Problem gereksinimleri:
+    - Yol maliyeti: km başına 1 birim
+    - Araç kapasiteleri: 500, 750, 1000 kg
+    - Kiralık araç: 200 birim (500 kg kapasiteli)
+    """
+    vehicles = Vehicle.query.filter_by(is_rental=False).all()
+    
+    return jsonify({
+        'cost_per_km': 1.0,  # Km başına maliyet (birim)
+        'rental_cost': 200,  # Kiralık araç maliyeti (birim)
+        'rental_capacity': 500,  # Kiralık araç kapasitesi (kg)
+        'own_vehicles': [v.to_dict() for v in vehicles],
+        'total_own_capacity': sum(v.capacity for v in vehicles)
+    })
+
+
+@app.route('/api/parameters', methods=['PUT'])
+def update_parameters():
+    """
+    Sistem parametrelerini güncelle
+    Parametreler değiştirilebilir olmalı
+    """
+    data = request.json
+    
+    # Araç parametrelerini güncelle
+    if 'vehicles' in data:
+        for v_data in data['vehicles']:
+            vehicle = Vehicle.query.get(v_data.get('id'))
+            if vehicle:
+                if 'capacity' in v_data:
+                    vehicle.capacity = float(v_data['capacity'])
+                if 'cost_per_km' in v_data:
+                    vehicle.cost_per_km = float(v_data['cost_per_km'])
+    
+    db.session.commit()
+    return jsonify({'message': 'Parametreler güncellendi'})
+
+
+@app.route('/api/vehicles/rent', methods=['POST'])
+def rent_vehicle():
+    """
+    Yeni kiralık araç ekle
+    Kiralık araç: 200 birim, 500 kg kapasiteli
+    """
+    data = request.json
+    count = data.get('count', 1)
+    
+    rented = []
+    for i in range(count):
+        vehicle = Vehicle(
+            name=f'Kiralık Araç (500kg)',
+            capacity=500,
+            cost_per_km=1.0,
+            is_rental=True,
+            rental_cost=200,
+            is_available=True
+        )
+        db.session.add(vehicle)
+        rented.append(vehicle)
+    
+    db.session.commit()
+    return jsonify({
+        'message': f'{count} adet araç kiralandı',
+        'vehicles': [v.to_dict() for v in rented],
+        'total_rental_cost': count * 200
+    })
+
+
+@app.route('/api/vehicles/rental', methods=['DELETE'])
+def remove_rental_vehicles():
+    """Tüm kiralık araçları sil"""
+    Vehicle.query.filter_by(is_rental=True).delete()
+    db.session.commit()
+    return jsonify({'message': 'Kiralık araçlar silindi'})
+
+
+# ==================== SENARYO YÜKLEYİCİ API ====================
+
+# PDF'deki 4 örnek senaryo verisi
+SCENARIO_DATA = {
+    1: {
+        'name': 'Senaryo 1 - Orta Yük (1445 kg, 113 kargo)',
+        'description': 'Mevcut kapasite (2250 kg) yeterli, kiralama gerekmez. Rota optimizasyonu önemli.',
+        'total_weight': 1445,
+        'total_count': 113,
+        'cargos': [
+            {'source': 'Başiskele', 'count': 10, 'weight': 120},
+            {'source': 'Çayırova', 'count': 8, 'weight': 80},
+            {'source': 'Darıca', 'count': 15, 'weight': 200},
+            {'source': 'Derince', 'count': 10, 'weight': 150},
+            {'source': 'Dilovası', 'count': 12, 'weight': 180},
+            {'source': 'Gebze', 'count': 5, 'weight': 70},
+            {'source': 'Gölcük', 'count': 7, 'weight': 90},
+            {'source': 'Kandıra', 'count': 6, 'weight': 60},
+            {'source': 'Karamürsel', 'count': 9, 'weight': 110},
+            {'source': 'Kartepe', 'count': 11, 'weight': 130},
+            {'source': 'Körfez', 'count': 6, 'weight': 75},
+            {'source': 'İzmit', 'count': 14, 'weight': 160}
+        ]
+    },
+    2: {
+        'name': 'Senaryo 2 - Dengesiz Dağılım (905 kg, 118 kargo)',
+        'description': 'Kapasite yeterli ama kargo yoğunluğu dengesiz. Rota optimizasyonu kritik.',
+        'total_weight': 905,
+        'total_count': 118,
+        'cargos': [
+            {'source': 'Başiskele', 'count': 40, 'weight': 200},
+            {'source': 'Çayırova', 'count': 35, 'weight': 175},
+            {'source': 'Darıca', 'count': 10, 'weight': 150},
+            {'source': 'Derince', 'count': 5, 'weight': 100},
+            {'source': 'Dilovası', 'count': 0, 'weight': 0},
+            {'source': 'Gebze', 'count': 8, 'weight': 120},
+            {'source': 'Gölcük', 'count': 0, 'weight': 0},
+            {'source': 'Kandıra', 'count': 0, 'weight': 0},
+            {'source': 'Karamürsel', 'count': 0, 'weight': 0},
+            {'source': 'Kartepe', 'count': 0, 'weight': 0},
+            {'source': 'Körfez', 'count': 0, 'weight': 0},
+            {'source': 'İzmit', 'count': 20, 'weight': 160}
+        ]
+    },
+    3: {
+        'name': 'Senaryo 3 - Kapasite Aşımı (2700 kg, 17 kargo)',
+        'description': 'Kapasite (2250 kg) aşılıyor, en az 1 araç kiralanmalı. Ağır kargolar birkaç ilçede yoğunlaşmış.',
+        'total_weight': 2700,
+        'total_count': 17,
+        'cargos': [
+            {'source': 'Başiskele', 'count': 0, 'weight': 0},
+            {'source': 'Çayırova', 'count': 3, 'weight': 700},
+            {'source': 'Darıca', 'count': 0, 'weight': 0},
+            {'source': 'Derince', 'count': 0, 'weight': 0},
+            {'source': 'Dilovası', 'count': 4, 'weight': 800},
+            {'source': 'Gebze', 'count': 5, 'weight': 900},
+            {'source': 'Gölcük', 'count': 0, 'weight': 0},
+            {'source': 'Kandıra', 'count': 0, 'weight': 0},
+            {'source': 'Karamürsel', 'count': 0, 'weight': 0},
+            {'source': 'Kartepe', 'count': 0, 'weight': 0},
+            {'source': 'Körfez', 'count': 0, 'weight': 0},
+            {'source': 'İzmit', 'count': 5, 'weight': 300}
+        ]
+    },
+    4: {
+        'name': 'Senaryo 4 - Yoğun Hafif Yük (1150 kg, 88 kargo)',
+        'description': 'Kapasite yeterli. 3 araç ile sefer düzenlenebilir, minimum maliyet hedefi.',
+        'total_weight': 1150,
+        'total_count': 88,
+        'cargos': [
+            {'source': 'Başiskele', 'count': 30, 'weight': 300},
+            {'source': 'Çayırova', 'count': 0, 'weight': 0},
+            {'source': 'Darıca', 'count': 0, 'weight': 0},
+            {'source': 'Derince', 'count': 0, 'weight': 0},
+            {'source': 'Dilovası', 'count': 0, 'weight': 0},
+            {'source': 'Gebze', 'count': 0, 'weight': 0},
+            {'source': 'Gölcük', 'count': 15, 'weight': 220},
+            {'source': 'Kandıra', 'count': 5, 'weight': 250},
+            {'source': 'Karamürsel', 'count': 20, 'weight': 180},
+            {'source': 'Kartepe', 'count': 10, 'weight': 200},
+            {'source': 'Körfez', 'count': 8, 'weight': 400},
+            {'source': 'İzmit', 'count': 0, 'weight': 0}
+        ]
+    }
+}
+
+
+@app.route('/api/scenarios/load/<int:scenario_id>', methods=['POST'])
+def load_scenario(scenario_id):
+    """
+    Belirli bir senaryonun kargolarını veritabanına yükle
+    Mevcut bekleyen kargolar silinir, yeni senaryo kargoları eklenir
+    """
+    if scenario_id not in SCENARIO_DATA:
+        return jsonify({'error': f'Senaryo {scenario_id} bulunamadı'}), 404
+    
+    scenario = SCENARIO_DATA[scenario_id]
+    
+    # Mevcut bekleyen kargoları sil
+    Cargo.query.filter_by(status='pending').delete()
+    
+    # Kiralık araçları sil
+    Vehicle.query.filter_by(is_rental=True).delete()
+    
+    # Eski rotaları ve seferleri sil
+    Trip.query.delete()
+    Route.query.delete()
+    
+    # İstasyon haritası
+    stations = Station.query.all()
+    station_map = {s.name: s for s in stations}
+    depot = Station.query.filter_by(is_depot=True).first()
+    
+    # Senaryo kargolarını ekle
+    cargo_count = 0
+    total_weight = 0
+    
+    for cargo_data in scenario['cargos']:
+        source_name = cargo_data['source']
+        source = station_map.get(source_name)
+        
+        if not source or cargo_data['count'] == 0:
+            continue
+        
+        # Her ilçe için kargo ağırlığını kargo sayısına böl
+        weight_per_cargo = cargo_data['weight'] / cargo_data['count'] if cargo_data['count'] > 0 else 0
+        
+        for i in range(cargo_data['count']):
+            cargo = Cargo(
+                sender_name=f'Gönderici {source_name} #{i+1}',
+                receiver_name=f'Üniversite Alıcı #{cargo_count+1}',
+                weight=round(weight_per_cargo, 1),
+                source_station_id=source.id,
+                dest_station_id=depot.id,
+                status='pending',
+                is_accepted=True
+            )
+            db.session.add(cargo)
+            cargo_count += 1
+            total_weight += weight_per_cargo
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': f'{scenario["name"]} yüklendi',
+        'scenario_id': scenario_id,
+        'scenario_name': scenario['name'],
+        'description': scenario['description'],
+        'cargo_count': cargo_count,
+        'total_weight': round(total_weight, 1),
+        'expected_weight': scenario['total_weight'],
+        'expected_count': scenario['total_count']
+    })
+
+
+@app.route('/api/scenarios/list', methods=['GET'])
+def list_scenarios():
+    """Mevcut senaryoları listele"""
+    scenarios = []
+    total_capacity = sum(v.capacity for v in Vehicle.query.filter_by(is_rental=False).all())
+    
+    for id, data in SCENARIO_DATA.items():
+        scenarios.append({
+            'id': id,
+            'name': data['name'],
+            'description': data['description'],
+            'total_weight': data['total_weight'],
+            'total_count': data['total_count'],
+            'rental_needed': data['total_weight'] > total_capacity,
+            'capacity_status': 'Yeterli' if data['total_weight'] <= total_capacity else 'Aşım'
+        })
+    
+    return jsonify({
+        'scenarios': scenarios,
+        'total_capacity': total_capacity,
+        'vehicle_count': Vehicle.query.filter_by(is_rental=False).count()
+    })
+
+
 @app.route('/api/analytics/scenario-summary', methods=['GET'])
 def get_scenario_summary():
     """Tüm senaryolar için özet tablo"""
-    from algorithms.scenarios import get_all_scenarios
-    scenarios = get_all_scenarios()
+    total_capacity = sum(v.capacity for v in Vehicle.query.filter_by(is_rental=False).all())
+    
+    scenarios = []
+    for id, data in SCENARIO_DATA.items():
+        scenarios.append({
+            'id': id,
+            'name': data['name'],
+            'description': data['description'],
+            'cargo_count': data['total_count'],
+            'estimated_weight': data['total_weight'],
+            'rental_expected': data['total_weight'] > total_capacity,
+            'difficulty': 'Kolay' if data['total_weight'] < total_capacity * 0.7 else ('Orta' if data['total_weight'] <= total_capacity else 'Zor')
+        })
+    
     return jsonify(scenarios)
-
-
-# ==================== SENARYO TEST API ====================
-
-@app.route('/api/scenarios/test/<int:scenario_id>', methods=['POST'])
-def test_scenario(scenario_id):
-    """Belirli bir senaryoyu test et"""
-    from algorithms.scenarios import run_scenario
-    result = run_scenario(scenario_id, db, Station, Vehicle, Cargo, Route, DistanceMatrix)
-    return jsonify(result)
 
 
 # ==================== VERİTABANI BAŞLATMA ====================
@@ -818,10 +1435,12 @@ def init_db():
     with app.app_context():
         db.create_all()
         
-        # Eğer istasyon yoksa, Kocaeli ilçelerini ekle
+        # Eğer istasyon yoksa, Kocaeli Üniversitesi (ana depo) ve ilçeleri ekle
+        # Kargolar ilçelerden Kocaeli Üniversitesi'ne gelecek
         if Station.query.count() == 0:
             kocaeli_districts = [
-                {'name': 'İzmit', 'lat': 40.7654, 'lng': 29.9408, 'is_depot': True},
+                {'name': 'Kocaeli Üniversitesi', 'lat': 40.8225, 'lng': 29.9213, 'is_depot': True},  # Ana Depo - Umuttepe Kampüsü
+                {'name': 'İzmit', 'lat': 40.7654, 'lng': 29.9408, 'is_depot': False},
                 {'name': 'Gebze', 'lat': 40.8027, 'lng': 29.4307, 'is_depot': False},
                 {'name': 'Darıca', 'lat': 40.7692, 'lng': 29.3753, 'is_depot': False},
                 {'name': 'Çayırova', 'lat': 40.8261, 'lng': 29.3689, 'is_depot': False},
@@ -845,17 +1464,14 @@ def init_db():
                 db.session.add(station)
             
             db.session.commit()
-            
-            # Mesafe matrisini oluştur
-            from algorithms.distance_calculator import update_distance_matrix
-            update_distance_matrix(db, Station, DistanceMatrix)
         
         # Eğer araç yoksa, varsayılan araçları ekle
+        # Problem gereksinimleri: km başına 1 birim maliyet
         if Vehicle.query.count() == 0:
             vehicles = [
                 {'name': 'Araç 1 (500kg)', 'capacity': 500, 'cost_per_km': 1.0},
-                {'name': 'Araç 2 (750kg)', 'capacity': 750, 'cost_per_km': 1.2},
-                {'name': 'Araç 3 (1000kg)', 'capacity': 1000, 'cost_per_km': 1.5},
+                {'name': 'Araç 2 (750kg)', 'capacity': 750, 'cost_per_km': 1.0},
+                {'name': 'Araç 3 (1000kg)', 'capacity': 1000, 'cost_per_km': 1.0},
             ]
             
             for v in vehicles:
@@ -871,4 +1487,4 @@ def init_db():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000)

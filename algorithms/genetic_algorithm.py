@@ -1,5 +1,14 @@
 """
 Genetik Algoritma ile CVRP (Capacitated Vehicle Routing Problem) Çözümü
+
+SENARYO: Kocaeli ilçelerinden Kocaeli Üniversitesi'ne kargo toplama
+- Araçlar Üniversite'den (depo) çıkar
+- İlçelere gider ve kargoları toplar
+- Üniversite'ye geri döner
+
+İKİ PROBLEM:
+1. Sınırsız Araç: Minimum maliyetle tüm kargoları taşı (gerekirse araç kirala)
+2. Belirli Araç: Sabit araçlarla maksimum kargo (sayı veya ağırlık)
 """
 
 import random
@@ -11,6 +20,7 @@ import copy
 class GeneticAlgorithmCVRP:
     """
     Kapasite Kısıtlı Araç Rotalama Problemi için Genetik Algoritma
+    Kargo Toplama Senaryosu: İlçelerden Üniversite'ye
     """
     
     def __init__(
@@ -28,10 +38,10 @@ class GeneticAlgorithmCVRP:
     ):
         """
         Args:
-            stations: İstasyon listesi
+            stations: İstasyon listesi (ilçeler)
             vehicles: Araç listesi  
-            cargos: Kargo listesi
-            depot: Depo istasyonu
+            cargos: Kargo listesi (ilçelerden üniversiteye)
+            depot: Depo istasyonu (Kocaeli Üniversitesi)
             distance_matrix: İstasyonlar arası mesafe matrisi
             population_size: Popülasyon büyüklüğü
             generations: Nesil sayısı
@@ -50,13 +60,13 @@ class GeneticAlgorithmCVRP:
         self.crossover_rate = crossover_rate
         self.elite_size = elite_size
         
-        # Kargo hedef istasyonlarını belirle
-        self.delivery_stations = list(set(c.dest_station for c in cargos))
+        # Kargo KAYNAK istasyonlarını belirle (ilçeler - kargonun toplandığı yerler)
+        self.pickup_stations = list(set(c.source_station for c in cargos))
         
-        # Her istasyon için toplam kargo ağırlığını hesapla
+        # Her istasyon için toplam kargo ağırlığını hesapla (kaynak istasyona göre)
         self.station_weights = {}
-        for station in self.delivery_stations:
-            total_weight = sum(c.weight for c in cargos if c.dest_station_id == station.id)
+        for station in self.pickup_stations:
+            total_weight = sum(c.weight for c in cargos if c.source_station_id == station.id)
             self.station_weights[station.id] = total_weight
     
     def calculate_distance(self, station1, station2) -> float:
@@ -117,8 +127,8 @@ class GeneticAlgorithmCVRP:
     
     def create_individual(self) -> Dict:
         """Rastgele bir birey (çözüm) oluştur"""
-        # Teslimat istasyonlarının kopyasını al ve karıştır
-        stations_to_assign = self.delivery_stations.copy()
+        # Kargo toplama istasyonlarının kopyasını al ve karıştır
+        stations_to_assign = self.pickup_stations.copy()
         random.shuffle(stations_to_assign)
         
         # Her araç için boş rota oluştur
