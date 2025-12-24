@@ -11,7 +11,7 @@
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-            --secondary-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+            --secondary-gradient: linear-gradient(135deg, #06b6d4 0%, #2971e6 100%);
         }
         
         * {
@@ -265,6 +265,11 @@
         .status-delivered {
             background: #d4edda;
             color: #155724;
+        }
+        
+        .status-rejected {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #b91c1c;
         }
         
         .tracking-info {
@@ -811,7 +816,8 @@
             const texts = {
                 'pending': 'Beklemede',
                 'in_transit': 'Yolda',
-                'delivered': 'Teslim Edildi'
+                'delivered': 'Teslim Edildi',
+                'rejected': 'Reddedildi'
             };
             return texts[status] || status;
         }

@@ -416,6 +416,43 @@ def add_vehicle():
     return jsonify(vehicle.to_dict()), 201
 
 
+@app.route('/api/vehicles/<int:id>', methods=['PUT'])
+def update_vehicle(id):
+    """Araç güncelle"""
+    vehicle = Vehicle.query.get_or_404(id)
+    data = request.json
+    
+    if 'name' in data:
+        vehicle.name = data['name']
+    if 'capacity' in data:
+        vehicle.capacity = float(data['capacity'])
+    if 'cost_per_km' in data:
+        vehicle.cost_per_km = float(data['cost_per_km'])
+    if 'is_available' in data:
+        vehicle.is_available = data['is_available']
+    
+    db.session.commit()
+    return jsonify(vehicle.to_dict())
+
+
+@app.route('/api/vehicles/<int:id>', methods=['DELETE'])
+def delete_vehicle(id):
+    """Araç sil"""
+    vehicle = Vehicle.query.get_or_404(id)
+    
+    # Aktif kargolara atanmış araçlar silinemez
+    active_cargos = Cargo.query.filter_by(vehicle_id=id).filter(
+        Cargo.status.in_(['pending', 'in_transit'])
+    ).count()
+    
+    if active_cargos > 0:
+        return jsonify({'error': f'Bu araçta {active_cargos} aktif kargo var, silinemez'}), 400
+    
+    db.session.delete(vehicle)
+    db.session.commit()
+    return jsonify({'message': 'Araç silindi'}), 200
+
+
 # ==================== KARGO API ====================
 
 @app.route('/api/cargos', methods=['GET'])
@@ -546,11 +583,33 @@ def bulk_delete_cargos():
 
 @app.route('/api/cargos/delete-all', methods=['DELETE'])
 def delete_all_cargos():
-    """Tüm kargoları sil (dikkatli kullanın!)"""
-    count = Cargo.query.count()
+    """Tüm kargoları ve ilgili sefer kayıtlarını sil"""
+    cargo_count = Cargo.query.count()
+    trip_count = Trip.query.count()
+    route_count = Route.query.count()
+    
+    # Önce Trip kayıtlarını sil
+    Trip.query.delete()
+    
+    # Sonra Route kayıtlarını sil
+    Route.query.delete()
+    
+    # Kiralık araçları sil
+    Vehicle.query.filter_by(is_rental=True).delete()
+    
+    # En son kargoları sil
     Cargo.query.delete()
+    
     db.session.commit()
-    return jsonify({'message': f'Tüm kargolar silindi ({count} adet)'})
+    
+    return jsonify({
+        'message': f'Tüm veriler silindi',
+        'deleted': {
+            'cargos': cargo_count,
+            'trips': trip_count,
+            'routes': route_count
+        }
+    })
 
 
 @app.route('/api/cargos/track/<int:id>', methods=['GET'])
@@ -895,6 +954,18 @@ def start_route(id):
     """Rotayı başlat"""
     route = Route.query.get_or_404(id)
     route.status = 'in_progress'
+    
+    # Sefer kaydını da başlat
+    trip = Trip.query.filter_by(route_id=id).first()
+    if trip:
+        trip.status = 'in_progress'
+        trip.start_time = datetime.utcnow()
+    
+    # Bu araçtaki kargoları "taşımada" olarak işaretle
+    cargos = Cargo.query.filter_by(vehicle_id=route.vehicle_id, status='pending').all()
+    for cargo in cargos:
+        cargo.status = 'in_transit'
+    
     db.session.commit()
     return jsonify(route.to_dict())
 
@@ -929,6 +1000,35 @@ def get_trips():
     return jsonify([t.to_dict() for t in trips])
 
 
+@app.route('/api/trips/delete-all', methods=['DELETE'])
+def delete_all_trips():
+    """Tüm sefer ve rota kayıtlarını sil"""
+    trip_count = Trip.query.count()
+    route_count = Route.query.count()
+    
+    # Kargolardaki araç atamalarını temizle
+    Cargo.query.update({Cargo.vehicle_id: None, Cargo.status: 'pending'})
+    
+    # Sefer ve rotaları sil
+    Trip.query.delete()
+    Route.query.delete()
+    
+    # Kiralık araçları sil
+    rental_count = Vehicle.query.filter_by(is_rental=True).count()
+    Vehicle.query.filter_by(is_rental=True).delete()
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Tüm seferler ve rotalar silindi',
+        'deleted': {
+            'trips': trip_count,
+            'routes': route_count,
+            'rental_vehicles': rental_count
+        }
+    })
+
+
 @app.route('/api/trips/active', methods=['GET'])
 def get_active_trips():
     """Aktif seferleri getir"""
@@ -961,6 +1061,32 @@ def start_trip(id):
     route = Route.query.get(trip.route_id)
     if route:
         route.status = 'in_progress'
+    
+    # Bu araçtaki kargoları "taşımada" olarak işaretle
+    cargos = Cargo.query.filter_by(vehicle_id=trip.vehicle_id, status='pending').all()
+    for cargo in cargos:
+        cargo.status = 'in_transit'
+    
+    db.session.commit()
+    return jsonify(trip.to_dict())
+
+
+@app.route('/api/trips/<int:id>/complete', methods=['POST'])
+def complete_trip(id):
+    """Seferi tamamla"""
+    trip = Trip.query.get_or_404(id)
+    trip.status = 'completed'
+    trip.end_time = datetime.utcnow()
+    
+    # İlgili rotayı da tamamla
+    route = Route.query.get(trip.route_id)
+    if route:
+        route.status = 'completed'
+    
+    # Bu araçtaki taşımada olan kargoları "teslim edildi" olarak işaretle
+    cargos = Cargo.query.filter_by(vehicle_id=trip.vehicle_id, status='in_transit').all()
+    for cargo in cargos:
+        cargo.status = 'delivered'
     
     db.session.commit()
     return jsonify(trip.to_dict())
@@ -1104,9 +1230,21 @@ def get_analytics_summary():
     pending_cargos = Cargo.query.filter_by(status='pending').count()
     delivered_cargos = Cargo.query.filter_by(status='delivered').count()
     in_transit = Cargo.query.filter_by(status='in_transit').count()
+    rejected_cargos = Cargo.query.filter_by(status='rejected').count()
     
     total_routes = Route.query.count()
     completed_routes = Route.query.filter_by(status='completed').count()
+    active_routes = Route.query.filter(Route.status.in_(['planned', 'in_progress'])).count()
+    
+    # Aktif araç sayısı (mevcut filo + kiralık)
+    total_vehicles = Vehicle.query.filter_by(is_available=True).count()
+    own_vehicles = Vehicle.query.filter_by(is_available=True, is_rental=False).count()
+    rental_vehicles = Vehicle.query.filter_by(is_available=True, is_rental=True).count()
+    
+    # Aktif seferlerdeki araçlar
+    active_vehicle_ids = db.session.query(Trip.vehicle_id).filter(
+        Trip.status.in_(['planned', 'in_progress'])
+    ).distinct().count()
     
     total_cost = db.session.query(db.func.sum(Route.total_cost)).scalar() or 0
     total_distance = db.session.query(db.func.sum(Route.total_distance)).scalar() or 0
@@ -1116,8 +1254,14 @@ def get_analytics_summary():
         'pending_cargos': pending_cargos,
         'delivered_cargos': delivered_cargos,
         'in_transit': in_transit,
+        'rejected_cargos': rejected_cargos,
         'total_routes': total_routes,
         'completed_routes': completed_routes,
+        'active_routes': active_routes,
+        'total_vehicles': total_vehicles,
+        'own_vehicles': own_vehicles,
+        'rental_vehicles': rental_vehicles,
+        'active_vehicles': active_vehicle_ids,
         'total_cost': round(total_cost, 2),
         'total_distance': round(total_distance, 2)
     })
@@ -1131,15 +1275,18 @@ def get_cost_breakdown():
     
     fuel_cost = 0
     rental_cost = 0
+    total_distance = 0
     
     for trip in trips:
         fuel_cost += trip.fuel_cost or 0
         rental_cost += trip.rental_cost or 0
+        total_distance += trip.total_distance or 0
     
     return jsonify({
         'fuel_cost': round(fuel_cost, 2),
         'rental_cost': round(rental_cost, 2),
-        'total_cost': round(fuel_cost + rental_cost, 2)
+        'total_cost': round(fuel_cost + rental_cost, 2),
+        'total_distance': round(total_distance, 2)
     })
 
 
@@ -1187,6 +1334,8 @@ def get_station_summary():
         
         result.append({
             'station': station.to_dict(),
+            'station_name': station.name,  # Frontend için eklendi
+            'station_id': station.id,
             'cargo_count': len(pending_cargos),
             'total_weight': sum(c.weight for c in pending_cargos),
             'cargos': [c.to_dict() for c in pending_cargos]
@@ -1482,6 +1631,19 @@ def init_db():
     """Veritabanını başlat ve örnek verileri ekle"""
     with app.app_context():
         db.create_all()
+        
+        # Varsayılan Admin oluştur
+        if Admin.query.count() == 0:
+            admin = Admin(
+                username='admin',
+                full_name='Sistem Yöneticisi',
+                email='admin@kocaeli.edu.tr',
+                is_superadmin=True
+            )
+            admin.set_password('admin123')  # Varsayılan şifre
+            db.session.add(admin)
+            db.session.commit()
+            print("Varsayılan admin oluşturuldu: admin / admin123")
         
         # Eğer istasyon yoksa, Kocaeli Üniversitesi (ana depo) ve ilçeleri ekle
         # Kargolar ilçelerden Kocaeli Üniversitesi'ne gelecek

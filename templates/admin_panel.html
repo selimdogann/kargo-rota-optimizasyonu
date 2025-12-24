@@ -833,7 +833,12 @@
 
         <!-- Trips -->
         <div id="trips" class="section-content">
-            <div class="page-header"><div class="page-title"><h1>Sefer Kayıtları</h1><p>Tüm seferlerin listesi</p></div></div>
+            <div class="page-header">
+                <div class="page-title"><h1>Sefer Kayıtları</h1><p>Tüm seferlerin listesi</p></div>
+                <button class="btn btn-danger" onclick="deleteAllTrips()">
+                    <i class="bi bi-trash-fill"></i> Tüm Seferleri Sil
+                </button>
+            </div>
             <div class="card">
                 <div class="card-body">
                     <table class="table">
@@ -956,6 +961,7 @@
                                 <option value="pending">Bekliyor</option>
                                 <option value="in_transit">Taşımada</option>
                                 <option value="delivered">Teslim Edildi</option>
+                                <option value="rejected">Reddedildi</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -1132,7 +1138,7 @@
                     fetch('/api/trips/active').then(r => r.json())
                 ]);
                 document.getElementById('totalCargos').textContent = summary.total_cargos || 0;
-                document.getElementById('activeVehicles').textContent = summary.active_vehicles || 0;
+                document.getElementById('activeVehicles').textContent = summary.total_vehicles || 0;
                 document.getElementById('totalDistance').textContent = (costBreakdown.total_distance || 0).toFixed(1) + ' km';
                 document.getElementById('totalCost').textContent = (costBreakdown.total_cost || 0).toFixed(0) + ' ₺';
                 const container = document.getElementById('activeTripsContainer');
@@ -1140,7 +1146,7 @@
                     container.innerHTML = trips.map(trip => `
                         <div class="trip-card">
                             <div class="trip-header"><span class="trip-title">${trip.vehicle?.name || 'Araç'}</span>
-                            <span class="badge badge-${trip.status === 'in_progress' ? 'success' : 'warning'}">${trip.status}</span></div>
+                            <span class="badge badge-${trip.status === 'in_progress' ? 'success' : 'warning'}">${trip.status === 'in_progress' ? 'Yolda' : 'Planlandı'}</span></div>
                             <div class="d-flex justify-content-between text-center">
                                 <div><div style="font-size:1.25rem;font-weight:600;color:#1e293b">${trip.cargo_count}</div><div style="font-size:0.8rem;color:#64748b">Kargo</div></div>
                                 <div><div style="font-size:1.25rem;font-weight:600;color:#1e293b">${trip.total_distance?.toFixed(1)} km</div><div style="font-size:0.8rem;color:#64748b">Mesafe</div></div>
@@ -1220,10 +1226,10 @@
             showLoading(true);
             try {
                 const mode = document.getElementById('optimizationMode')?.value || 'unlimited_vehicles';
-                const criteria = document.getElementById('rejectionCriteria')?.value || 'max_count';
+                const criteria = document.getElementById('rejectionCriteria')?.value || 'max_weight';
                 const response = await fetch('/api/routes/optimize', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mode, rejection_criteria: criteria })
+                    body: JSON.stringify({ mode, accept_criteria: criteria })
                 });
                 const result = await response.json();
                 if (response.ok) {
@@ -1243,8 +1249,10 @@
                 document.getElementById('optimizationStats').innerHTML = `
                     <div class="col-3 result-stat"><div class="value">${result.total_distance?.toFixed(1) || 0}</div><div class="label">Toplam Mesafe (km)</div></div>
                     <div class="col-3 result-stat"><div class="value">${result.total_cost?.toFixed(0) || 0} ₺</div><div class="label">Toplam Maliyet</div></div>
-                    <div class="col-3 result-stat"><div class="value">${result.accepted_cargo_count || 0}</div><div class="label">Kabul Edilen Kargo</div></div>
-                    <div class="col-3 result-stat"><div class="value">${result.vehicle_count || 0}</div><div class="label">Kullanılan Araç</div></div>`;
+                    <div class="col-3 result-stat"><div class="value">${result.accepted_count || 0}</div><div class="label">Kabul Edilen Kargo</div></div>
+                    <div class="col-3 result-stat"><div class="value">${result.total_vehicles_used || 0}</div><div class="label">Kullanılan Araç</div></div>
+                    ${result.rejected_count > 0 ? `<div class="col-12 mt-3"><div class="alert alert-warning">Reddedilen Kargo: ${result.rejected_count} adet (${result.rejected_weight?.toFixed(1)} kg)</div></div>` : ''}
+                    ${result.rented_vehicles > 0 ? `<div class="col-12 mt-2"><div class="alert alert-info">Kiralanan Araç: ${result.rented_vehicles} adet (Kira: ${result.rental_cost?.toFixed(0)} ₺)</div></div>` : ''}`;
             }
         }
 
@@ -1272,6 +1280,32 @@
 
         async function startTrip(id) { await fetch(`/api/trips/${id}/start`, { method: 'POST' }); loadTripsData(); loadDashboardData(); showToast('Sefer başlatıldı', 'success'); }
         async function completeTrip(id) { await fetch(`/api/trips/${id}/complete`, { method: 'POST' }); loadTripsData(); loadDashboardData(); showToast('Sefer tamamlandı', 'success'); }
+        
+        async function deleteAllTrips() {
+            if (!confirm('TÜM SEFERLERİ silmek istediğinize emin misiniz?\n\nBu işlem rotaları ve kiralık araçları da silecek!')) return;
+            
+            showLoading(true);
+            try {
+                const response = await fetch('/api/trips/delete-all', { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast(`${result.deleted.trips} sefer, ${result.deleted.routes} rota silindi`, 'success');
+                    loadTripsData();
+                    loadDashboardData();
+                    loadVehiclesData();
+                    // Haritadaki rotaları temizle
+                    routeLayers.forEach(layer => adminMap.removeLayer(layer));
+                    routeLayers = [];
+                } else {
+                    showToast(result.error || 'Silme işlemi başarısız', 'error');
+                }
+            } catch (error) {
+                showToast('Bir hata oluştu', 'error');
+                console.error(error);
+            }
+            showLoading(false);
+        }
 
         async function loadStationsData() {
             try {
@@ -1291,8 +1325,28 @@
                         <div class="vehicle-name">${v.name}</div><div class="vehicle-capacity">${v.capacity} kg kapasite</div>
                         <div class="mt-2"><span class="badge ${v.is_rental ? 'badge-warning' : 'badge-success'}">${v.is_rental ? 'Kiralık' : 'Şirket'}</span></div>
                         <div class="mt-2 text-muted small">${v.cost_per_km} ₺/km</div>
+                        ${v.is_rental ? `<button class="btn btn-sm btn-outline-danger mt-2" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i> Sil</button>` : ''}
                     </div></div>`).join('');
             } catch (error) { console.error('Error loading vehicles:', error); }
+        }
+        
+        async function deleteVehicle(id) {
+            if (!confirm('Bu aracı silmek istediğinize emin misiniz?')) return;
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/vehicles/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Araç silindi', 'success');
+                    loadVehiclesData();
+                    loadDashboardData();
+                } else {
+                    showToast(result.error || 'Araç silinemedi', 'error');
+                }
+            } catch (error) {
+                showToast('Bir hata oluştu', 'error');
+            }
+            showLoading(false);
         }
 
         async function loadScenario(id) {
@@ -1478,6 +1532,7 @@
                 case 'pending': return '<span class="badge badge-warning">Bekliyor</span>';
                 case 'in_transit': return '<span class="badge badge-primary">Taşımada</span>';
                 case 'delivered': return '<span class="badge badge-success">Teslim Edildi</span>';
+                case 'rejected': return '<span class="badge badge-danger">Reddedildi</span>';
                 default: return '<span class="badge badge-secondary">Bilinmiyor</span>';
             }
         }

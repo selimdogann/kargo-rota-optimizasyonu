@@ -85,6 +85,10 @@ python app.py
 - Kullanıcı Paneli: http://localhost:5000/user
 - Yönetici Paneli: http://localhost:5000/admin
 
+**Varsayılan Admin Girişi:**
+- Kullanıcı adı: `admin`
+- Şifre: `admin123`
+
 ## 📁 Proje Yapısı
 
 ```
@@ -121,16 +125,18 @@ Sistem 12 Kocaeli ilçesini destekler:
 | Araç | Kapasite | Maliyet |
 |------|----------|---------|
 | Araç 1 | 500 kg | 1.0 ₺/km |
-| Araç 2 | 750 kg | 1.2 ₺/km |
-| Araç 3 | 1000 kg | 1.5 ₺/km |
+| Araç 2 | 750 kg | 1.0 ₺/km |
+| Araç 3 | 1000 kg | 1.0 ₺/km |
 | Kiralık | 500 kg | 200 ₺/gün + 1.0 ₺/km |
+
+**Toplam Kapasite:** 2250 kg
 
 ## 📊 Test Senaryoları
 
-1. **Senaryo 1 - Hafif Yük:** ~880 kg (tek araç yeterli)
-2. **Senaryo 2 - Orta Yük:** ~2100 kg (tüm araçlar)
-3. **Senaryo 3 - Kapasite Aşımı:** 2700 kg (kiralık araç gerekli)
-4. **Senaryo 4 - Yoğun Gün:** ~2230 kg (tüm ilçeler)
+1. **Senaryo 1 - Orta Yük (1445 kg):** Kapasite yeterli, kiralama gerekmez
+2. **Senaryo 2 - Dengesiz Dağılım (905 kg):** Kapasite yeterli ama dağılım dengesiz
+3. **Senaryo 3 - Kapasite Aşımı (2700 kg):** Kiralık araç gerekli
+4. **Senaryo 4 - Yoğun Hafif Yük (1150 kg):** Kapasite yeterli, minimum maliyet hedefi
 
 ## 🔬 Algoritmalar
 
