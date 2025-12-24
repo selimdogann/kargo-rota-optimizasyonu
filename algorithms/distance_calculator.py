@@ -38,7 +38,7 @@ DISTRICT_COORDS = {
     'KARAMURSEL': (40.6917, 29.6167), # Karamürsel Merkez
     'KANDIRA': (41.0706, 30.1528),    # Kandıra Merkez
     'KARTEPE': (40.7389, 30.0378),    # Kartepe Merkez
-    'BASISKELE': (40.7381, 30.0001),  # Başiskele Merkez
+    'BASISKELE': (40.7150, 29.9150),  # Başiskele Merkez
 }
 
 
@@ -145,9 +145,9 @@ ROAD_SEGMENTS = {
     ],
     'IZMIT_BASISKELE': [
         (40.7656, 29.9406),  # İzmit
-        (40.7500, 29.9600),  # Serdar
-        (40.7400, 29.9800),  # Kullar
-        (40.7381, 30.0001),  # Başiskele
+        (40.7500, 29.9400),  # Serdar
+        (40.7350, 29.9200),  # Kullar
+        (40.7244, 29.9097),  # Başiskele
     ],
     'IZMIT_KARTEPE': [
         (40.7656, 29.9406),  # İzmit
@@ -198,13 +198,13 @@ ROAD_SEGMENTS = {
         (40.8267, 29.3728),  # Çayırova
     ],
     'BASISKELE_GOLCUK': [
-        (40.7381, 30.0001),  # Başiskele
-        (40.7280, 29.9200),  # Yeniköy
+        (40.7244, 29.9097),  # Başiskele
+        (40.7200, 29.8700),  # Yeniköy
         (40.7175, 29.8306),  # Gölcük
     ],
     'BASISKELE_KARTEPE': [
-        (40.7381, 30.0001),  # Başiskele
-        (40.7385, 30.0200),  # Ara nokta
+        (40.7244, 29.9097),  # Başiskele
+        (40.7300, 29.9700),  # Ara nokta
         (40.7389, 30.0378),  # Kartepe
     ],
     'GOLCUK_KARAMURSEL': [

@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app import app, db, Station, Vehicle, Admin
+from app import app, db, Station, Vehicle, Admin, User
 
 def init_database(force_reset=False):
     """Veritabanını başlat ve örnek verileri yükle
@@ -41,9 +41,36 @@ def init_database(force_reset=False):
         else:
             print("→ Admin zaten mevcut")
         
-        # Tabloları oluştur
-        db.create_all()
-        print("✓ Veritabanı tabloları oluşturuldu")
+        # Varsayılan User (admin rolünde) oluştur
+        if User.query.count() == 0:
+            # Admin kullanıcı
+            admin_user = User(
+                email='admin@kargo.com',
+                full_name='Sistem Yöneticisi',
+                phone='0532 000 0000',
+                role='admin',
+                is_active=True
+            )
+            admin_user.set_password('admin123')
+            db.session.add(admin_user)
+            
+            # Örnek normal kullanıcı
+            test_user = User(
+                email='kullanici@test.com',
+                full_name='Test Kullanıcı',
+                phone='0533 111 1111',
+                role='user',
+                is_active=True
+            )
+            test_user.set_password('123456')
+            db.session.add(test_user)
+            
+            db.session.commit()
+            print("✓ Varsayılan kullanıcılar oluşturuldu:")
+            print("  - Admin: admin@kargo.com / admin123")
+            print("  - Kullanıcı: kullanici@test.com / 123456")
+        else:
+            print("→ Kullanıcılar zaten mevcut")
         
         # Mevcut istasyonları kontrol et
         if Station.query.count() == 0:
@@ -62,7 +89,7 @@ def init_database(force_reset=False):
                 {'name': 'Karamürsel', 'latitude': 40.6917, 'longitude': 29.6167, 'is_depot': False},
                 {'name': 'Kandıra', 'latitude': 41.0706, 'longitude': 30.1528, 'is_depot': False},
                 {'name': 'Kartepe', 'latitude': 40.7389, 'longitude': 30.0378, 'is_depot': False},
-                {'name': 'Başiskele', 'latitude': 40.7381, 'longitude': 30.0001, 'is_depot': False}
+                {'name': 'Başiskele', 'latitude': 40.7244, 'longitude': 29.9097, 'is_depot': False}
             ]
             
             for d in districts:

@@ -19,7 +19,7 @@ const KOCAELI_DISTRICTS = {
     'Karamürsel': { lat: 40.6917, lng: 29.6167 },
     'Kandıra': { lat: 41.0706, lng: 30.1528 },
     'Kartepe': { lat: 40.7389, lng: 30.0378 },
-    'Başiskele': { lat: 40.7381, lng: 30.0001 }
+    'Başiskele': { lat: 40.7244, lng: 29.9097 }
 };
 
 // Harita yardımcı fonksiyonları

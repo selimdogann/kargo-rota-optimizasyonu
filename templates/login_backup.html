@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap - Kocaeli Kargo Dağıtım Sistemi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            min-height: 100vh;
+            font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        /* ===== ANIMATED BACKGROUND ===== */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+        
+        .bg-animation .box {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            animation: float-box 20s infinite;
+        }
+        
+        .bg-animation .box:nth-child(1) {
+            width: 400px;
+            height: 400px;
+            top: -200px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+        
+        .bg-animation .box:nth-child(2) {
+            width: 300px;
+            height: 300px;
+            bottom: -150px;
+            right: -100px;
+            animation-delay: 5s;
+        }
+        
+        .bg-animation .box:nth-child(3) {
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            left: 80%;
+            animation-delay: 10s;
+        }
+        
+        @keyframes float-box {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(20px, 20px) rotate(90deg); }
+            50% { transform: translate(0, 40px) rotate(180deg); }
+            75% { transform: translate(-20px, 20px) rotate(270deg); }
+        }
+        
+        /* ===== MAIN CONTAINER ===== */
+        .main-container {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* ===== LEFT SIDE - BRANDING ===== */
+        .brand-side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px;
+            color: white;
+        }
+        
+        .brand-content {
+            max-width: 500px;
+        }
+        
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 50px;
+        }
+        
+        .logo-box {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.4);
+        }
+        
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .brand-title {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .brand-subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.8;
+            margin-bottom: 40px;
+        }
+        
+        .features-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(10px);
+        }
+        
+        .feature-icon {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .feature-text h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .feature-text p {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 0;
+        }
+        
+        /* ===== RIGHT SIDE - LOGIN FORM ===== */
+        .login-side {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+        
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 50px 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .login-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+            font-size: 2.2rem;
+            color: white;
+            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.35);
+        }
+        
+        .login-header h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 8px;
+        }
+        
+        .login-header p {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.95rem;
+        }
+        
+        /* Alert Messages */
+        .alert {
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .alert-success {
+            background: rgba(34, 197, 94, 0.15);
+            color: #86efac;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        /* Form Styling */
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .input-wrapper i {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 1.1rem;
+            transition: color 0.3s ease;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 16px 18px 16px 50px;
+            font-size: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+        }
+        
+        .form-control:focus + i,
+        .input-wrapper:focus-within i {
+            color: #3b82f6;
+        }
+        
+        /* Password Toggle */
+        .password-toggle {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            padding: 5px;
+            transition: color 0.3s ease;
+        }
+        
+        .password-toggle:hover {
+            color: #3b82f6;
+        }
+        
+        /* Remember Me & Forgot Password */
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        
+        .remember-me input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #3b82f6;
+            cursor: pointer;
+        }
+        
+        .remember-me span {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .forgot-password {
+            font-size: 0.9rem;
+            color: #3b82f6;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .forgot-password:hover {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+        
+        /* Login Button */
+        .btn-login {
+            width: 100%;
+            padding: 18px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-login:active {
+            transform: translateY(-1px);
+        }
+        
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 30px 0;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.9rem;
+        }
+        
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .divider span {
+            padding: 0 15px;
+        }
+        
+        /* Register Link */
+        .register-link {
+            text-align: center;
+            margin-top: 25px;
+        }
+        
+        .register-link p {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.95rem;
+            margin: 0;
+        }
+        
+        .register-link a {
+            color: #3b82f6;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .register-link a:hover {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+        
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        .btn-quick {
+            flex: 1;
+            padding: 14px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        
+        .btn-quick:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        /* Responsive */
+        @media (max-width: 992px) {
+            .brand-side {
+                display: none;
+            }
+            
+            .login-side {
+                padding: 20px;
+            }
+            
+            .login-card {
+                padding: 40px 30px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .login-card {
+                padding: 35px 25px;
+                border-radius: 20px;
+            }
+            
+            .login-header h2 {
+                font-size: 1.5rem;
+            }
+            
+            .form-options {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation">
+        <div class="box"></div>
+        <div class="box"></div>
+        <div class="box"></div>
+    </div>
+    
+    <div class="main-container">
+        <!-- Left Side - Branding -->
+        <div class="brand-side">
+            <div class="brand-content">
+                <div class="brand-logo">
+                    <div class="logo-box">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                    <span class="logo-text">KocaeliKargo</span>
+                </div>
+                
+                <h1 class="brand-title">Kargo Dağıtım<br>Yönetim Sistemi</h1>
+                
+                <p class="brand-subtitle">
+                    Kocaeli ilçelerinden üniversiteye kesintisiz kargo dağıtımı. 
+                    Akıllı rota optimizasyonu ile hızlı ve ekonomik teslimat.
+                </p>
+                
+                <div class="features-list">
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div class="feature-text">
+                            <h4>Akıllı Rota</h4>
+                            <p>Genetik algoritma ile optimize edilmiş rotalar</p>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="bi bi-speedometer2"></i>
+                        </div>
+                        <div class="feature-text">
+                            <h4>Gerçek Zamanlı</h4>
+                            <p>Anlık takip ve durum güncellemeleri</p>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <div class="feature-text">
+                            <h4>Maliyet Tasarrufu</h4>
+                            <p>Optimum araç ve yakıt kullanımı</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Side - Login Form -->
+        <div class="login-side">
+            <div class="login-card">
+                <div class="login-header">
+                    <div class="login-icon">
+                        <i class="bi bi-person-check"></i>
+                    </div>
+                    <h2>Hoş Geldiniz</h2>
+                    <p>Devam etmek için giriş yapın</p>
+                </div>
+                
+                {% if error %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    {{ error }}
+                </div>
+                {% endif %}
+                
+                {% if success %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle-fill"></i>
+                    {{ success }}
+                </div>
+                {% endif %}
+                
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="form-group">
+                        <label for="email">E-posta Adresi</label>
+                        <div class="input-wrapper">
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   placeholder="ornek@email.com" required>
+                            <i class="bi bi-envelope"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Şifre</label>
+                        <div class="input-wrapper">
+                            <input type="password" class="form-control" id="password" name="password" 
+                                   placeholder="••••••••" required>
+                            <i class="bi bi-lock"></i>
+                            <button type="button" class="password-toggle" onclick="togglePassword()">
+                                <i class="bi bi-eye" id="toggleIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-options">
+                        <label class="remember-me">
+                            <input type="checkbox" name="remember">
+                            <span>Beni hatırla</span>
+                        </label>
+                        <a href="{{ url_for('forgot_password') }}" class="forgot-password">Şifremi unuttum</a>
+                    </div>
+                    
+                    <button type="submit" class="btn-login">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Giriş Yap
+                    </button>
+                </form>
+                
+                <div class="divider">
+                    <span>veya</span>
+                </div>
+                
+                <div class="register-link">
+                    <p>Hesabınız yok mu? <a href="{{ url_for('register') }}">Kayıt Ol</a></p>
+                </div>
+                
+                <div class="quick-actions">
+                    <a href="{{ url_for('index') }}" class="btn-quick">
+                        <i class="bi bi-house"></i>
+                        Ana Sayfa
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('bi-eye');
+                toggleIcon.classList.add('bi-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('bi-eye-slash');
+                toggleIcon.classList.add('bi-eye');
+            }
+        }
+    </script>
+</body>
+</html>

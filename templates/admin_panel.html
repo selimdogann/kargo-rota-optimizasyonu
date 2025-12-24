@@ -342,6 +342,105 @@
         .stat-card.warning .stat-icon { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
         .stat-card.danger .stat-icon { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 
+        /* Simülasyon Stilleri */
+        .sim-pulse {
+            width: 10px;
+            height: 10px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        
+        .sim-stat-box {
+            padding: 20px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .sim-stat-box:hover {
+            transform: translateY(-5px);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        
+        .sim-stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 15px;
+        }
+        
+        .sim-stat-icon.bg-primary { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .sim-stat-icon.bg-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .sim-stat-icon.bg-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .sim-stat-icon.bg-info { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+        
+        .sim-stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .sim-stat-label {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.9rem;
+        }
+        
+        .activity-item {
+            transition: all 0.3s ease;
+        }
+        
+        .activity-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        
+        .activity-icon.bg-primary { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .activity-icon.bg-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .activity-icon.bg-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .activity-icon.bg-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .activity-icon.bg-info { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+        
+        /* Araç marker animasyonu */
+        .vehicle-marker {
+            transition: all 0.05s linear;
+        }
+        
+        .vehicle-marker-icon {
+            font-size: 24px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        .bouncing {
+            animation: bounce 0.5s ease;
+        }
+
         .stat-value {
             font-size: 2.2rem;
             font-weight: 700;
@@ -687,9 +786,6 @@
                 <a href="#" class="nav-link" data-section="vehicles">
                     <i class="bi bi-truck-front-fill"></i> Araçlar
                 </a>
-                <a href="#" class="nav-link" data-section="scenarios">
-                    <i class="bi bi-lightning-fill"></i> Test Senaryoları
-                </a>
                 <a href="#" class="nav-link" data-section="cargos">
                     <i class="bi bi-box-seam-fill"></i> Kargo Yönetimi
                 </a>
@@ -699,6 +795,9 @@
                 <div class="nav-section-title">Diğer</div>
                 <a href="#" class="nav-link" data-section="analytics">
                     <i class="bi bi-bar-chart-fill"></i> Analizler
+                </a>
+                <a href="#" class="nav-link" data-section="users">
+                    <i class="bi bi-person-fill"></i> Kullanıcılar
                 </a>
                 <a href="#" class="nav-link" data-section="admins">
                     <i class="bi bi-people-fill"></i> Yöneticiler
@@ -761,15 +860,122 @@
             <div class="row">
                 <div class="col-lg-8">
                     <div class="card">
-                        <div class="card-header"><h5><i class="bi bi-map-fill"></i> Rota Haritası</h5></div>
-                        <div class="card-body p-0"><div id="adminMap"></div></div>
+                        <div class="card-header">
+                            <h5><i class="bi bi-map-fill"></i> Canlı Rota Haritası</h5>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="startSimulation()" id="btnStartSim">
+                                    <i class="bi bi-play-fill"></i> Simülasyon
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="pauseSimulation()" id="btnPauseSim" style="display:none;">
+                                    <i class="bi bi-pause-fill"></i> Duraklat
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="stopSimulation()" id="btnStopSim" style="display:none;">
+                                    <i class="bi bi-stop-fill"></i> Durdur
+                                </button>
+                                <select class="form-select form-select-sm" style="width: auto;" id="simSpeed" onchange="changeSimSpeed()">
+                                    <option value="2">2x Hız</option>
+                                    <option value="4" selected>4x Hız</option>
+                                    <option value="8">8x Hız</option>
+                                    <option value="16">16x Hız</option>
+                                    <option value="32">32x Turbo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body p-0" style="position: relative;">
+                            <div id="adminMap"></div>
+                            <!-- Simülasyon Durumu Overlay -->
+                            <div id="simStatusOverlay" style="display:none; position: absolute; top: 10px; left: 10px; z-index: 1000;">
+                                <div class="p-3 rounded" style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(16, 185, 129, 0.5);">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <div class="sim-pulse"></div>
+                                        <span class="text-success fw-semibold">Simülasyon Aktif</span>
+                                    </div>
+                                    <div class="small">
+                                        <div class="text-muted">Aktif Araç: <span class="text-white" id="simActiveVehicles">0</span></div>
+                                        <div class="text-muted">Tamamlanan: <span class="text-success" id="simCompletedRoutes">0</span></div>
+                                        <div class="text-muted">Toplanan Kargo: <span class="text-warning" id="simCollectedCargos">0</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="col-lg-4">
+                    <!-- Canlı Aktivite Akışı -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5><i class="bi bi-activity text-success"></i> Canlı Aktivite</h5>
+                        </div>
+                        <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;" id="liveActivityFeed">
+                            <div class="activity-item p-3 border-bottom" style="border-color: rgba(255,255,255,0.1) !important;">
+                                <div class="d-flex align-items-start gap-2">
+                                    <div class="activity-icon bg-primary"><i class="bi bi-info-circle"></i></div>
+                                    <div>
+                                        <div class="small text-muted">Şimdi</div>
+                                        <div class="text-white">Sistem hazır, simülasyonu başlatabilirsiniz</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="card">
                         <div class="card-header"><h5><i class="bi bi-clock-fill"></i> Aktif Seferler</h5></div>
                         <div class="card-body" id="activeTripsContainer">
                             <p class="text-muted text-center py-4">Aktif sefer bulunmuyor</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Simülasyon İstatistikleri -->
+            <div class="row mt-4" id="simStatsRow" style="display: none;">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-graph-up text-primary"></i> Simülasyon İstatistikleri</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3 text-center">
+                                    <div class="sim-stat-box">
+                                        <div class="sim-stat-icon bg-primary"><i class="bi bi-truck"></i></div>
+                                        <div class="sim-stat-value" id="simTotalVehicles">0</div>
+                                        <div class="sim-stat-label">Toplam Araç</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="sim-stat-box">
+                                        <div class="sim-stat-icon bg-success"><i class="bi bi-check-circle"></i></div>
+                                        <div class="sim-stat-value" id="simDeliveredCargos">0</div>
+                                        <div class="sim-stat-label">Toplanan Kargo</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="sim-stat-box">
+                                        <div class="sim-stat-icon bg-warning"><i class="bi bi-geo-alt"></i></div>
+                                        <div class="sim-stat-value" id="simTotalDistance">0 km</div>
+                                        <div class="sim-stat-label">Kat Edilen Mesafe</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="sim-stat-box">
+                                        <div class="sim-stat-icon bg-info"><i class="bi bi-clock-history"></i></div>
+                                        <div class="sim-stat-value" id="simElapsedTime">00:00</div>
+                                        <div class="sim-stat-label">Geçen Süre</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Progress Bar -->
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Simülasyon İlerlemesi</span>
+                                    <span class="text-white" id="simProgressPercent">0%</span>
+                                </div>
+                                <div class="progress" style="height: 10px; background: rgba(255,255,255,0.1);">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="simProgressBar" style="width: 0%"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -821,8 +1027,36 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Araç Bazlı Maliyet Detayları -->
+                    <div class="card" id="vehicleCostDetailsCard" style="display:none;">
+                        <div class="card-header">
+                            <h5><i class="bi bi-cash-coin"></i> Araç Bazlı Maliyet Detayları</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Araç</th>
+                                            <th>Kapasite</th>
+                                            <th>Yük</th>
+                                            <th>Verim</th>
+                                            <th>Mesafe</th>
+                                            <th>Yakıt</th>
+                                            <th>Kiralama</th>
+                                            <th>Toplam</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="vehicleCostDetailsTable"></tbody>
+                                    <tfoot id="vehicleCostDetailsTotals"></tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="card">
-                        <div class="card-header"><h5><i class="bi bi-list-task"></i> Oluşturulan Rotalar</h5></div>
+                        <div class="card-header"><h5><i class="bi bi-list-task"></i> Oluşturulan Rotalar ve Kargo Sahipleri</h5></div>
                         <div class="card-body" id="routesContainer">
                             <p class="text-muted text-center py-4">Henüz rota oluşturulmadı</p>
                         </div>
@@ -834,15 +1068,33 @@
         <!-- Trips -->
         <div id="trips" class="section-content">
             <div class="page-header">
-                <div class="page-title"><h1>Sefer Kayıtları</h1><p>Tüm seferlerin listesi</p></div>
-                <button class="btn btn-danger" onclick="deleteAllTrips()">
-                    <i class="bi bi-trash-fill"></i> Tüm Seferleri Sil
-                </button>
+                <div class="page-title"><h1>Sefer Kayıtları</h1><p>Tüm seferlerin listesi ve araç detayları</p></div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="loadVehicleRouteDetails()">
+                        <i class="bi bi-eye-fill"></i> Araç Detayları
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteAllTrips()">
+                        <i class="bi bi-trash-fill"></i> Tüm Seferleri Sil
+                    </button>
+                </div>
             </div>
+            
+            <!-- Araç Rota Detayları -->
+            <div class="card mb-4" id="vehicleRouteDetailsCard" style="display: none;">
+                <div class="card-header">
+                    <h5><i class="bi bi-truck"></i> Araç Bazlı Rota ve Kargo Detayları</h5>
+                </div>
+                <div class="card-body" id="vehicleRouteDetailsContainer"></div>
+            </div>
+            
+            <!-- Sefer Tablosu -->
             <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-table"></i> Sefer Listesi</h5>
+                </div>
                 <div class="card-body">
                     <table class="table">
-                        <thead><tr><th>ID</th><th>Araç</th><th>Tarih</th><th>Mesafe</th><th>Maliyet</th><th>Durum</th><th>İşlemler</th></tr></thead>
+                        <thead><tr><th>ID</th><th>Araç</th><th>Tarih</th><th>Mesafe</th><th>Maliyet</th><th>Kargo</th><th>Durum</th><th>İşlemler</th></tr></thead>
                         <tbody id="tripsTableBody"></tbody>
                     </table>
                 </div>
@@ -851,11 +1103,42 @@
 
         <!-- Stations -->
         <div id="stations" class="section-content">
-            <div class="page-header"><div class="page-title"><h1>İstasyonlar</h1><p>Tüm ilçe ve depo noktaları</p></div></div>
+            <div class="page-header">
+                <div class="page-title"><h1>İstasyonlar</h1><p>Tüm ilçe ve depo noktaları</p></div>
+                <button class="btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addStationModal">
+                    <i class="bi bi-plus-circle-fill"></i> Yeni İstasyon Ekle
+                </button>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card primary">
+                        <div class="stat-icon"><i class="bi bi-geo-alt-fill"></i></div>
+                        <div class="stat-value" id="stationTotalCount">0</div>
+                        <div class="stat-label">Toplam İstasyon</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card success">
+                        <div class="stat-icon"><i class="bi bi-building"></i></div>
+                        <div class="stat-value" id="stationDistrictCount">0</div>
+                        <div class="stat-label">İlçe</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card warning">
+                        <div class="stat-icon"><i class="bi bi-house-fill"></i></div>
+                        <div class="stat-value" id="stationDepotCount">0</div>
+                        <div class="stat-label">Depo</div>
+                    </div>
+                </div>
+            </div>
             <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-table"></i> İstasyon Listesi</h5>
+                </div>
                 <div class="card-body">
                     <table class="table">
-                        <thead><tr><th>ID</th><th>İsim</th><th>Enlem</th><th>Boylam</th><th>Tip</th></tr></thead>
+                        <thead><tr><th>ID</th><th>İsim</th><th>Enlem</th><th>Boylam</th><th>Tip</th><th>İşlemler</th></tr></thead>
                         <tbody id="stationsTableBody"></tbody>
                     </table>
                 </div>
@@ -868,52 +1151,213 @@
             <div class="row" id="vehiclesContainer"></div>
         </div>
 
-        <!-- Scenarios -->
-        <div id="scenarios" class="section-content">
-            <div class="page-header"><div class="page-title"><h1>Test Senaryoları</h1><p>PDF dokümanındaki örnek senaryoları yükleyin</p></div></div>
+        <!-- Analytics -->
+        <div id="analytics" class="section-content">
+            <div class="page-header">
+                <div class="page-title">
+                    <h1><i class="bi bi-graph-up-arrow me-2"></i>Analizler ve İstatistikler</h1>
+                    <p>Detaylı sistem performans metrikleri ve görsel raporlar</p>
+                </div>
+                <button class="btn-primary-gradient" onclick="refreshAnalytics()">
+                    <i class="bi bi-arrow-clockwise"></i> Yenile
+                </button>
+            </div>
+            
+            <!-- Analytics Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);">
+                        <div class="stat-icon"><i class="bi bi-box-seam-fill"></i></div>
+                        <div class="stat-value" id="analyticsTotalCargos">0</div>
+                        <div class="stat-label">Toplam Kargo</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%);">
+                        <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="stat-value" id="analyticsDeliveredCargos">0</div>
+                        <div class="stat-label">Teslim Edildi</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(249, 115, 22, 0.2) 100%);">
+                        <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+                        <div class="stat-value" id="analyticsPendingCargos">0</div>
+                        <div class="stat-label">Bekleyen</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);">
+                        <div class="stat-icon"><i class="bi bi-currency-dollar"></i></div>
+                        <div class="stat-value" id="analyticsTotalCost">0 ₺</div>
+                        <div class="stat-label">Toplam Maliyet</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Row 1: Trend Charts -->
+            <div class="row mb-4">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-activity text-primary"></i> Günlük Kargo Trendleri (Son 14 Gün)</h5>
+                        </div>
+                        <div class="card-body" style="height: 320px;">
+                            <canvas id="cargoTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-pie-chart-fill text-success"></i> Kargo Durumu Dağılımı</h5>
+                        </div>
+                        <div class="card-body" style="height: 320px;">
+                            <canvas id="cargoStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Row 2: Cost & Station Charts -->
+            <div class="row mb-4">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-cash-coin text-warning"></i> Maliyet Dağılımı</h5>
+                        </div>
+                        <div class="card-body" style="height: 320px;">
+                            <canvas id="costChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-geo-alt-fill text-info"></i> İstasyon Bazlı Kargo</h5>
+                        </div>
+                        <div class="card-body" style="height: 320px;">
+                            <canvas id="stationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Row 3: Trip & Weight Charts -->
+            <div class="row mb-4">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-truck text-danger"></i> Günlük Sefer ve Maliyet (Son 14 Gün)</h5>
+                        </div>
+                        <div class="card-body" style="height: 320px;">
+                            <canvas id="tripCostChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-speedometer2 text-secondary"></i> Kargo Ağırlık Dağılımı</h5>
+                        </div>
+                        <div class="card-body" style="height: 320px;">
+                            <canvas id="weightDistChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Row 4: Vehicle Performance -->
             <div class="row">
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="card h-100"><div class="card-body text-center">
-                        <div class="vehicle-icon mx-auto"><i class="bi bi-1-circle-fill"></i></div>
-                        <h5>Senaryo 1</h5><p class="text-muted">1445 kg, 113 kargo</p>
-                        <button class="btn btn-outline-primary w-100" onclick="loadScenario(1)">Yükle</button>
-                    </div></div>
-                </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="card h-100"><div class="card-body text-center">
-                        <div class="vehicle-icon mx-auto"><i class="bi bi-2-circle-fill"></i></div>
-                        <h5>Senaryo 2</h5><p class="text-muted">905 kg, 118 kargo</p>
-                        <button class="btn btn-outline-primary w-100" onclick="loadScenario(2)">Yükle</button>
-                    </div></div>
-                </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="card h-100"><div class="card-body text-center">
-                        <div class="vehicle-icon mx-auto"><i class="bi bi-3-circle-fill"></i></div>
-                        <h5>Senaryo 3</h5><p class="text-muted">2700 kg, 17 kargo</p>
-                        <button class="btn btn-outline-warning w-100" onclick="loadScenario(3)">Yükle</button>
-                    </div></div>
-                </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="card h-100"><div class="card-body text-center">
-                        <div class="vehicle-icon mx-auto"><i class="bi bi-4-circle-fill"></i></div>
-                        <h5>Senaryo 4</h5><p class="text-muted">1150 kg, 88 kargo</p>
-                        <button class="btn btn-outline-primary w-100" onclick="loadScenario(4)">Yükle</button>
-                    </div></div>
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-bar-chart-line-fill text-primary"></i> Araç Performans Karşılaştırması</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="vehiclePerformanceTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Araç</th>
+                                            <th>Tip</th>
+                                            <th>Toplam Sefer</th>
+                                            <th>Toplam Mesafe</th>
+                                            <th>Toplam Kargo</th>
+                                            <th>Toplam Ağırlık</th>
+                                            <th>Verimlilik</th>
+                                            <th>Toplam Maliyet</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="vehiclePerformanceBody">
+                                        <tr><td colspan="8" class="text-center text-muted py-4">Yükleniyor...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Analytics -->
-        <div id="analytics" class="section-content">
-            <div class="page-header"><div class="page-title"><h1>Analizler</h1><p>Sistem performans metrikleri</p></div></div>
-            <div class="row">
-                <div class="col-lg-6">
-                    <div class="card"><div class="card-header"><h5><i class="bi bi-pie-chart-fill"></i> Maliyet Dağılımı</h5></div>
-                    <div class="card-body"><canvas id="costChart"></canvas></div></div>
+        <!-- Users Management -->
+        <div id="users" class="section-content">
+            <div class="page-header">
+                <div class="page-title"><h1><i class="bi bi-person-fill me-2"></i>Kullanıcı Yönetimi</h1><p>Sisteme kayıtlı kullanıcıları görüntüleyin ve yönetin</p></div>
+            </div>
+            
+            <!-- User Stats -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);">
+                        <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+                        <div class="stat-value" id="totalUsersCount">0</div>
+                        <div class="stat-label">Toplam Kullanıcı</div>
+                    </div>
                 </div>
-                <div class="col-lg-6">
-                    <div class="card"><div class="card-header"><h5><i class="bi bi-bar-chart-fill"></i> İstasyon Bazlı Kargo</h5></div>
-                    <div class="card-body"><canvas id="stationChart"></canvas></div></div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);">
+                        <div class="stat-icon"><i class="bi bi-person-check-fill"></i></div>
+                        <div class="stat-value" id="activeUsersCount">0</div>
+                        <div class="stat-label">Aktif Kullanıcı</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);">
+                        <div class="stat-icon"><i class="bi bi-shield-fill-check"></i></div>
+                        <div class="stat-value" id="adminUsersCount">0</div>
+                        <div class="stat-label">Admin Kullanıcı</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);">
+                        <div class="stat-icon"><i class="bi bi-box-seam-fill"></i></div>
+                        <div class="stat-value" id="usersWithCargosCount">0</div>
+                        <div class="stat-label">Kargo Gönderen</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Ad Soyad</th>
+                                    <th>E-posta</th>
+                                    <th>Telefon</th>
+                                    <th>Rol</th>
+                                    <th>Durum</th>
+                                    <th>Kayıt Tarihi</th>
+                                    <th>Son Giriş</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1019,9 +1463,15 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5><i class="bi bi-table"></i> Kargo Listesi</h5>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="selectAllCargos" onchange="toggleSelectAllCargos()">
-                        <label class="form-check-label" for="selectAllCargos">Tümünü Seç</label>
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Toplu Kargo Ekleme -->
+                        <button class="btn btn-outline-primary btn-sm" onclick="openBulkCargoModal()">
+                            <i class="bi bi-plus-circle"></i> Toplu Kargo Ekle
+                        </button>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="selectAllCargos" onchange="toggleSelectAllCargos()">
+                            <label class="form-check-label" for="selectAllCargos">Tümünü Seç</label>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -1068,6 +1518,141 @@
             </div>
         </div>
     </div>
+    
+    <!-- Add Station Modal -->
+    <div class="modal fade" id="addStationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title"><i class="bi bi-geo-alt-fill text-primary"></i> Yeni İstasyon Ekle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addStationForm">
+                        <div class="mb-3">
+                            <label class="form-label">İstasyon Adı *</label>
+                            <input type="text" class="form-control" id="newStationName" placeholder="Örn: Pendik" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Enlem (Latitude) *</label>
+                                <input type="number" step="0.0001" class="form-control" id="newStationLat" placeholder="40.7654" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Boylam (Longitude) *</label>
+                                <input type="number" step="0.0001" class="form-control" id="newStationLng" placeholder="29.9408" required>
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="newStationIsDepot">
+                            <label class="form-check-label">Bu istasyon bir depo noktasıdır</label>
+                        </div>
+                        <div class="alert alert-info small">
+                            <i class="bi bi-info-circle"></i> Koordinatları bulmak için <a href="https://www.google.com/maps" target="_blank">Google Maps</a> kullanabilirsiniz.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn-primary-gradient" onclick="addStation()">
+                        <i class="bi bi-plus-circle"></i> Ekle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Station Modal -->
+    <div class="modal fade" id="editStationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title"><i class="bi bi-pencil text-warning"></i> İstasyon Düzenle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editStationForm">
+                        <input type="hidden" id="editStationId">
+                        <div class="mb-3">
+                            <label class="form-label">İstasyon Adı *</label>
+                            <input type="text" class="form-control" id="editStationName" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Enlem (Latitude) *</label>
+                                <input type="number" step="0.0001" class="form-control" id="editStationLat" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Boylam (Longitude) *</label>
+                                <input type="number" step="0.0001" class="form-control" id="editStationLng" required>
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="editStationIsDepot">
+                            <label class="form-check-label">Bu istasyon bir depo noktasıdır</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn-primary-gradient" onclick="updateStation()">
+                        <i class="bi bi-check-circle"></i> Güncelle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bulk Cargo Modal -->
+    <div class="modal fade" id="bulkCargoModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title"><i class="bi bi-boxes"></i> Toplu Kargo Ekle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Her ilçe için kargo sayısı ve ortalama ağırlık girin:</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm" id="bulkCargoTable">
+                            <thead>
+                                <tr>
+                                    <th>İlçe</th>
+                                    <th style="width: 120px;">Kargo Sayısı</th>
+                                    <th style="width: 150px;">Ort. Ağırlık (kg)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulkCargoTableBody">
+                                <!-- İlçeler buraya yüklenecek -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3 p-3 bg-dark rounded">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="text-muted small">Toplam Kargo</div>
+                                <div class="fs-4 text-primary" id="bulkTotalCount">0</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-muted small">Tahmini Ağırlık</div>
+                                <div class="fs-4 text-warning" id="bulkTotalWeight">0 kg</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-muted small">Kapasite Durumu</div>
+                                <div class="fs-4" id="bulkCapacityStatus">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn-primary-gradient" onclick="submitBulkCargo()">
+                        <i class="bi bi-plus-circle"></i> Kargoları Ekle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="toast-container" id="toastContainer"></div>
 
@@ -1107,6 +1692,7 @@
                 case 'stations': loadStationsData(); break;
                 case 'vehicles': loadVehiclesData(); break;
                 case 'analytics': loadAnalyticsData(); break;
+                case 'users': loadUsersData(); break;
                 case 'admins': loadAdminsData(); break;
                 case 'cargos': loadCargosData(); break;
             }
@@ -1237,6 +1823,16 @@
                     displayOptimizationResult(result);
                     loadDashboardData();
                     loadActiveRoutes();
+                    
+                    // Simülasyonu otomatik başlat seçeneği göster
+                    if (result.total_vehicles_used > 0) {
+                        setTimeout(() => {
+                            if (confirm('Rota optimizasyonu tamamlandı! Simülasyonu başlatmak ister misiniz?')) {
+                                showSection('dashboard');
+                                setTimeout(() => startSimulation(), 500);
+                            }
+                        }, 500);
+                    }
                 } else { showToast(result.message || 'Optimizasyon başarısız', 'error'); }
             } catch (error) { showToast('Bir hata oluştu', 'error'); console.error(error); }
             showLoading(false);
@@ -1254,6 +1850,134 @@
                     ${result.rejected_count > 0 ? `<div class="col-12 mt-3"><div class="alert alert-warning">Reddedilen Kargo: ${result.rejected_count} adet (${result.rejected_weight?.toFixed(1)} kg)</div></div>` : ''}
                     ${result.rented_vehicles > 0 ? `<div class="col-12 mt-2"><div class="alert alert-info">Kiralanan Araç: ${result.rented_vehicles} adet (Kira: ${result.rental_cost?.toFixed(0)} ₺)</div></div>` : ''}`;
             }
+            
+            // Araç bazlı maliyet detayları
+            if (result.vehicle_details && result.vehicle_details.length > 0) {
+                const costCard = document.getElementById('vehicleCostDetailsCard');
+                costCard.style.display = 'block';
+                
+                let tableHtml = '';
+                let totalFuel = 0, totalRental = 0, totalCost = 0, totalDistance = 0;
+                
+                result.vehicle_details.forEach(v => {
+                    totalFuel += v.fuel_cost || 0;
+                    totalRental += v.rental_cost || 0;
+                    totalCost += v.total_cost || 0;
+                    totalDistance += v.distance || 0;
+                    
+                    tableHtml += `
+                        <tr>
+                            <td>
+                                <strong class="${v.is_rental ? 'text-warning' : 'text-white'}">${v.vehicle_name}</strong>
+                                ${v.is_rental ? '<span class="badge badge-warning ms-1">Kiralık</span>' : ''}
+                            </td>
+                            <td>${v.capacity} kg</td>
+                            <td>${v.load?.toFixed(1)} kg</td>
+                            <td>
+                                <div class="progress" style="height: 18px; background: rgba(255,255,255,0.1);">
+                                    <div class="progress-bar ${v.utilization > 90 ? 'bg-danger' : v.utilization > 70 ? 'bg-warning' : 'bg-success'}" 
+                                         style="width: ${v.utilization}%">${v.utilization}%</div>
+                                </div>
+                            </td>
+                            <td>${v.distance?.toFixed(1)} km</td>
+                            <td>${v.fuel_cost?.toFixed(2)} ₺</td>
+                            <td>${v.rental_cost > 0 ? v.rental_cost?.toFixed(2) + ' ₺' : '-'}</td>
+                            <td><strong class="text-success">${v.total_cost?.toFixed(2)} ₺</strong></td>
+                        </tr>
+                    `;
+                });
+                
+                document.getElementById('vehicleCostDetailsTable').innerHTML = tableHtml;
+                document.getElementById('vehicleCostDetailsTotals').innerHTML = `
+                    <tr style="background: rgba(99, 102, 241, 0.2);">
+                        <td colspan="4"><strong class="text-white">TOPLAM</strong></td>
+                        <td><strong>${totalDistance.toFixed(1)} km</strong></td>
+                        <td><strong>${totalFuel.toFixed(2)} ₺</strong></td>
+                        <td><strong>${totalRental.toFixed(2)} ₺</strong></td>
+                        <td><strong class="text-success fs-5">${totalCost.toFixed(2)} ₺</strong></td>
+                    </tr>
+                `;
+            }
+            
+            // Rotalar ve kargo sahipleri
+            displayRoutesWithCargos(result);
+        }
+        
+        function displayRoutesWithCargos(result) {
+            const container = document.getElementById('routesContainer');
+            
+            if (!result.trips || result.trips.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center py-4">Henüz rota oluşturulmadı</p>';
+                return;
+            }
+            
+            let html = '';
+            result.trips.forEach((trip, index) => {
+                const routeDetails = trip.route_details || {};
+                const stops = routeDetails.stops || [];
+                const cargos = routeDetails.cargos || [];
+                const vehicle = routeDetails.vehicle || trip.vehicle;
+                
+                html += `
+                    <div class="mb-4 p-3 rounded" style="background: rgba(30, 41, 59, 0.9); border-left: 4px solid ${ROUTE_COLORS[index % ROUTE_COLORS.length]};">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0 text-white">
+                                <i class="bi bi-truck-front-fill" style="color: ${ROUTE_COLORS[index % ROUTE_COLORS.length]};"></i>
+                                ${vehicle?.name || 'Araç ' + (index + 1)}
+                                ${vehicle?.is_rental ? '<span class="badge badge-warning ms-2">Kiralık</span>' : ''}
+                            </h6>
+                            <div>
+                                <span class="badge badge-primary me-2">${trip.total_distance?.toFixed(1)} km</span>
+                                <span class="badge badge-success">${trip.total_cost?.toFixed(0)} ₺</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Güzergah (TEK YÖNLÜ: İlçeler → Üniversite) -->
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-2">Güzergah (Tek Yönlü Toplama):</small>
+                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                ${stops.map((stop, idx) => `
+                                    <span class="badge badge-secondary">${stop.station_name}</span>
+                                    ${idx < stops.length - 1 ? '<span class="mx-1">→</span>' : ''}
+                                `).join('')}
+                                <span class="mx-1">→</span>
+                                <span class="badge badge-danger">🏫 Kocaeli Üniversitesi</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Kargolar ve Sahipleri -->
+                        <div>
+                            <small class="text-muted d-block mb-2">Kargolar ve Sahipleri (${cargos.length} adet, ${trip.total_weight?.toFixed(1)} kg):</small>
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0" style="font-size: 0.85rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 50px;">#</th>
+                                            <th>Gönderici (Kullanıcı)</th>
+                                            <th>Alıcı (Üniversite)</th>
+                                            <th>Kaynak İlçe</th>
+                                            <th>Ağırlık</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${cargos.map(c => `
+                                            <tr>
+                                                <td>${c.id}</td>
+                                                <td><i class="bi bi-person-fill text-primary"></i> ${c.sender}</td>
+                                                <td><i class="bi bi-mortarboard-fill text-success"></i> ${c.receiver}</td>
+                                                <td><span class="badge badge-secondary">${c.source}</span></td>
+                                                <td><span class="text-warning">${c.weight} kg</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
         }
 
         async function loadRoutesData() {
@@ -1271,11 +1995,184 @@
                 document.getElementById('tripsTableBody').innerHTML = trips.length > 0
                     ? trips.map(trip => `<tr><td>#${trip.id}</td><td>${trip.vehicle?.name || '-'}</td><td>${trip.date || '-'}</td>
                         <td>${trip.total_distance?.toFixed(1) || 0} km</td><td>${trip.total_cost?.toFixed(0) || 0} ₺</td>
+                        <td><span class="badge badge-primary">${trip.cargo_count || 0}</span></td>
                         <td><span class="badge badge-${trip.status === 'completed' ? 'success' : trip.status === 'in_progress' ? 'warning' : 'primary'}">${trip.status}</span></td>
                         <td>${trip.status === 'planned' ? `<button class="btn btn-sm btn-success" onclick="startTrip(${trip.id})"><i class="bi bi-play-fill"></i></button>` : ''}
                         ${trip.status === 'in_progress' ? `<button class="btn btn-sm btn-primary" onclick="completeTrip(${trip.id})"><i class="bi bi-check-lg"></i></button>` : ''}</td></tr>`).join('')
-                    : '<tr><td colspan="7" class="text-center text-muted">Sefer bulunamadı</td></tr>';
+                    : '<tr><td colspan="8" class="text-center text-muted">Sefer bulunamadı</td></tr>';
             } catch (error) { console.error('Error loading trips:', error); }
+        }
+        
+        async function loadVehicleRouteDetails() {
+            showLoading(true);
+            try {
+                const response = await fetch('/api/analytics/vehicle-routes');
+                const routes = await response.json();
+                
+                const card = document.getElementById('vehicleRouteDetailsCard');
+                const container = document.getElementById('vehicleRouteDetailsContainer');
+                
+                if (routes.length === 0) {
+                    container.innerHTML = '<p class="text-muted text-center py-4">Aktif sefer bulunamadı</p>';
+                    card.style.display = 'block';
+                    showLoading(false);
+                    return;
+                }
+                
+                // Toplam maliyetleri hesapla
+                let totalFuelCost = 0, totalRentalCost = 0, totalDistance = 0;
+                routes.forEach(r => {
+                    totalFuelCost += r.fuel_cost || 0;
+                    totalRentalCost += r.rental_cost || 0;
+                    totalDistance += r.total_distance || 0;
+                });
+                
+                let html = `
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="p-3 rounded text-center" style="background: rgba(99, 102, 241, 0.2);">
+                                <div class="text-muted small">Toplam Mesafe</div>
+                                <div class="fs-4 text-primary">${totalDistance.toFixed(1)} km</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 rounded text-center" style="background: rgba(16, 185, 129, 0.2);">
+                                <div class="text-muted small">Yakıt Maliyeti</div>
+                                <div class="fs-4 text-success">${totalFuelCost.toFixed(2)} ₺</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 rounded text-center" style="background: rgba(245, 158, 11, 0.2);">
+                                <div class="text-muted small">Kiralama Maliyeti</div>
+                                <div class="fs-4 text-warning">${totalRentalCost.toFixed(2)} ₺</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 rounded text-center" style="background: rgba(239, 68, 68, 0.2);">
+                                <div class="text-muted small">Toplam Maliyet</div>
+                                <div class="fs-4 text-danger">${(totalFuelCost + totalRentalCost).toFixed(2)} ₺</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                routes.forEach((route, index) => {
+                    html += `
+                        <div class="mb-4 p-3 rounded" style="background: rgba(30, 41, 59, 0.9); border-left: 4px solid ${ROUTE_COLORS[index % ROUTE_COLORS.length]};">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h6 class="mb-1 text-white">
+                                        <i class="bi bi-truck-front-fill" style="color: ${ROUTE_COLORS[index % ROUTE_COLORS.length]};"></i>
+                                        ${route.vehicle?.name || 'Araç'}
+                                        ${route.vehicle?.is_rental ? '<span class="badge badge-warning ms-2">Kiralık</span>' : ''}
+                                    </h6>
+                                    <small class="text-muted">Tarih: ${route.date || '-'} | Durum: 
+                                        <span class="badge badge-${route.status === 'completed' ? 'success' : route.status === 'in_progress' ? 'warning' : 'primary'}">${route.status}</span>
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="text-info">${route.total_distance?.toFixed(1)} km</div>
+                                    <div class="text-success fs-5">${route.total_cost?.toFixed(2)} ₺</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-3 text-center">
+                                    <div class="text-muted small">Kapasite</div>
+                                    <div>${route.vehicle?.capacity} kg</div>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="text-muted small">Yük</div>
+                                    <div class="text-warning">${route.total_weight?.toFixed(1)} kg</div>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="text-muted small">Kargo Sayısı</div>
+                                    <div class="text-primary">${route.cargo_count}</div>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="text-muted small">Verimlilik</div>
+                                    <div class="progress" style="height: 20px; background: rgba(255,255,255,0.1);">
+                                        <div class="progress-bar ${route.capacity_utilization > 90 ? 'bg-danger' : route.capacity_utilization > 70 ? 'bg-warning' : 'bg-success'}" 
+                                             style="width: ${route.capacity_utilization}%">${route.capacity_utilization}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Güzergah (TEK YÖNLÜ: İlçeler → Üniversite) -->
+                            <div class="mb-3">
+                                <small class="text-muted d-block mb-2">Güzergah (Tek Yönlü Toplama):</small>
+                                <div class="d-flex flex-wrap gap-1 align-items-center">
+                                    ${route.route_stops.map((stop, idx) => `
+                                        <span class="badge badge-secondary">${stop.station_name}</span>
+                                        ${idx < route.route_stops.length - 1 ? '<span class="mx-1">→</span>' : ''}
+                                    `).join('')}
+                                    <span class="mx-1">→</span>
+                                    <span class="badge badge-danger">🏫 Kocaeli Üniversitesi</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Kargolar ve Kullanıcılar -->
+                            ${route.cargos && route.cargos.length > 0 ? `
+                                <div>
+                                    <small class="text-muted d-block mb-2">Araçtaki Kargolar ve Kullanıcılar:</small>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0" style="font-size: 0.85rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Gönderici (Kullanıcı)</th>
+                                                    <th>Alıcı</th>
+                                                    <th>Kaynak</th>
+                                                    <th>Ağırlık</th>
+                                                    <th>Durum</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${route.cargos.map(c => `
+                                                    <tr>
+                                                        <td>${c.id}</td>
+                                                        <td><i class="bi bi-person-fill text-primary"></i> ${c.sender_name}</td>
+                                                        <td><i class="bi bi-mortarboard-fill text-success"></i> ${c.receiver_name}</td>
+                                                        <td><span class="badge badge-secondary">${c.source}</span></td>
+                                                        <td><span class="text-warning">${c.weight} kg</span></td>
+                                                        <td><span class="badge badge-${c.status === 'delivered' ? 'success' : c.status === 'in_transit' ? 'warning' : 'primary'}">${c.status}</span></td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ` : '<p class="text-muted small mb-0">Bu araçta kargo yok</p>'}
+                            
+                            <!-- Maliyet Detayı -->
+                            <div class="mt-3 pt-3 border-top border-secondary">
+                                <div class="row text-center" style="font-size: 0.9rem;">
+                                    <div class="col-4">
+                                        <span class="text-muted">Yakıt:</span>
+                                        <span class="text-success ms-2">${route.fuel_cost?.toFixed(2)} ₺</span>
+                                    </div>
+                                    <div class="col-4">
+                                        <span class="text-muted">Kiralama:</span>
+                                        <span class="text-warning ms-2">${route.rental_cost > 0 ? route.rental_cost?.toFixed(2) + ' ₺' : '-'}</span>
+                                    </div>
+                                    <div class="col-4">
+                                        <span class="text-muted">Toplam:</span>
+                                        <strong class="text-primary ms-2">${route.total_cost?.toFixed(2)} ₺</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                card.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading vehicle route details:', error);
+                showToast('Araç detayları yüklenemedi', 'error');
+            }
+            showLoading(false);
         }
 
         async function startTrip(id) { await fetch(`/api/trips/${id}/start`, { method: 'POST' }); loadTripsData(); loadDashboardData(); showToast('Sefer başlatıldı', 'success'); }
@@ -1310,10 +2207,130 @@
         async function loadStationsData() {
             try {
                 const stations = await fetch('/api/stations').then(r => r.json());
-                document.getElementById('stationsTableBody').innerHTML = stations.map(s => `<tr><td>#${s.id}</td><td>${s.name}</td>
-                    <td>${s.latitude.toFixed(4)}</td><td>${s.longitude.toFixed(4)}</td>
-                    <td><span class="badge ${s.is_depot ? 'badge-danger' : 'badge-primary'}">${s.is_depot ? 'Depo' : 'İlçe'}</span></td></tr>`).join('');
+                
+                // İstatistikleri güncelle
+                document.getElementById('stationTotalCount').textContent = stations.length;
+                document.getElementById('stationDistrictCount').textContent = stations.filter(s => !s.is_depot).length;
+                document.getElementById('stationDepotCount').textContent = stations.filter(s => s.is_depot).length;
+                
+                document.getElementById('stationsTableBody').innerHTML = stations.map(s => `<tr>
+                    <td>#${s.id}</td>
+                    <td><strong>${s.name}</strong></td>
+                    <td>${s.latitude.toFixed(4)}</td>
+                    <td>${s.longitude.toFixed(4)}</td>
+                    <td><span class="badge ${s.is_depot ? 'badge-danger' : 'badge-primary'}">${s.is_depot ? 'Depo' : 'İlçe'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editStation(${s.id}, '${s.name}', ${s.latitude}, ${s.longitude}, ${s.is_depot})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        ${!s.is_depot ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteStation(${s.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>` : ''}
+                    </td>
+                </tr>`).join('');
             } catch (error) { console.error('Error loading stations:', error); }
+        }
+        
+        async function addStation() {
+            const data = {
+                name: document.getElementById('newStationName').value,
+                latitude: parseFloat(document.getElementById('newStationLat').value),
+                longitude: parseFloat(document.getElementById('newStationLng').value),
+                is_depot: document.getElementById('newStationIsDepot').checked
+            };
+            
+            if (!data.name || !data.latitude || !data.longitude) {
+                showToast('Lütfen tüm alanları doldurun', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch('/api/stations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('İstasyon başarıyla eklendi', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('addStationModal')).hide();
+                    document.getElementById('addStationForm').reset();
+                    loadStationsData();
+                    loadStationsOnMap();
+                } else {
+                    showToast(result.error || 'İstasyon eklenemedi', 'error');
+                }
+            } catch (error) {
+                showToast('Bir hata oluştu', 'error');
+                console.error(error);
+            }
+            showLoading(false);
+        }
+        
+        function editStation(id, name, lat, lng, isDepot) {
+            document.getElementById('editStationId').value = id;
+            document.getElementById('editStationName').value = name;
+            document.getElementById('editStationLat').value = lat;
+            document.getElementById('editStationLng').value = lng;
+            document.getElementById('editStationIsDepot').checked = isDepot;
+            new bootstrap.Modal(document.getElementById('editStationModal')).show();
+        }
+        
+        async function updateStation() {
+            const id = document.getElementById('editStationId').value;
+            const data = {
+                name: document.getElementById('editStationName').value,
+                latitude: parseFloat(document.getElementById('editStationLat').value),
+                longitude: parseFloat(document.getElementById('editStationLng').value),
+                is_depot: document.getElementById('editStationIsDepot').checked
+            };
+            
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/stations/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('İstasyon güncellendi', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('editStationModal')).hide();
+                    loadStationsData();
+                    loadStationsOnMap();
+                } else {
+                    showToast(result.error || 'Güncelleme başarısız', 'error');
+                }
+            } catch (error) {
+                showToast('Bir hata oluştu', 'error');
+                console.error(error);
+            }
+            showLoading(false);
+        }
+        
+        async function deleteStation(id) {
+            if (!confirm('Bu istasyonu silmek istediğinize emin misiniz?')) return;
+            
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/stations/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('İstasyon silindi', 'success');
+                    loadStationsData();
+                    loadStationsOnMap();
+                } else {
+                    showToast(result.error || 'Silme işlemi başarısız', 'error');
+                }
+            } catch (error) {
+                showToast('Bir hata oluştu', 'error');
+                console.error(error);
+            }
+            showLoading(false);
         }
 
         async function loadVehiclesData() {
@@ -1349,36 +2366,556 @@
             showLoading(false);
         }
 
-        async function loadScenario(id) {
-            showLoading(true);
-            try {
-                const response = await fetch(`/api/scenarios/load/${id}`, { method: 'POST' });
-                const result = await response.json();
-                if (response.ok) { showToast(`Senaryo ${id} yüklendi: ${result.cargo_count} kargo, ${result.total_weight} kg`, 'success'); loadDashboardData(); }
-                else { showToast(result.error || 'Senaryo yüklenemedi', 'error'); }
-            } catch (error) { showToast('Bir hata oluştu', 'error'); }
-            showLoading(false);
-        }
-
+        let costChartInstance = null;
+        let stationChartInstance = null;
+        let cargoTrendChartInstance = null;
+        let cargoStatusChartInstance = null;
+        let tripCostChartInstance = null;
+        let weightDistChartInstance = null;
+        
         async function loadAnalyticsData() {
             try {
-                const [costBreakdown, stationSummary] = await Promise.all([
+                const [summary, costBreakdown, stationSummary, vehicleBreakdown, allCargos, trips] = await Promise.all([
+                    fetch('/api/analytics/summary').then(r => r.json()),
                     fetch('/api/analytics/cost-breakdown').then(r => r.json()),
-                    fetch('/api/analytics/station-summary').then(r => r.json())
+                    fetch('/api/analytics/station-summary').then(r => r.json()),
+                    fetch('/api/analytics/vehicle-breakdown').then(r => r.json()),
+                    fetch('/api/cargos').then(r => r.json()),
+                    fetch('/api/trips').then(r => r.json())
                 ]);
-                new Chart(document.getElementById('costChart'), {
+                
+                // Özet kartlarını güncelle
+                document.getElementById('analyticsTotalCargos').textContent = summary.total_cargos || 0;
+                document.getElementById('analyticsDeliveredCargos').textContent = summary.delivered_cargos || 0;
+                document.getElementById('analyticsPendingCargos').textContent = summary.pending_cargos || 0;
+                document.getElementById('analyticsTotalCost').textContent = (costBreakdown.total_cost || 0).toFixed(0) + ' ₺';
+                
+                // Mevcut grafikleri yok et
+                if (costChartInstance) costChartInstance.destroy();
+                if (stationChartInstance) stationChartInstance.destroy();
+                if (cargoTrendChartInstance) cargoTrendChartInstance.destroy();
+                if (cargoStatusChartInstance) cargoStatusChartInstance.destroy();
+                if (tripCostChartInstance) tripCostChartInstance.destroy();
+                if (weightDistChartInstance) weightDistChartInstance.destroy();
+                
+                // ====== 1. Günlük Kargo Trendleri (Son 14 Gün) ======
+                const last14Days = getLast14Days();
+                const cargoTrendData = getCargoTrendData(allCargos, last14Days);
+                
+                cargoTrendChartInstance = new Chart(document.getElementById('cargoTrendChart'), {
+                    type: 'line',
+                    data: {
+                        labels: last14Days.map(d => d.label),
+                        datasets: [{
+                            label: 'Kargo Sayısı',
+                            data: cargoTrendData,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: '#f59e0b'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#94a3b8', stepSize: 1 },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            },
+                            x: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(255,255,255,0.05)' }
+                            }
+                        }
+                    }
+                });
+                
+                // ====== 2. Kargo Durumu Dağılımı (Donut) ======
+                const statusData = {
+                    yolda: summary.in_transit || 0,
+                    beklemede: summary.pending_cargos || 0,
+                    teslim: summary.delivered_cargos || 0
+                };
+                
+                cargoStatusChartInstance = new Chart(document.getElementById('cargoStatusChart'), {
                     type: 'doughnut',
-                    data: { labels: ['Yakıt Maliyeti', 'Kiralama Maliyeti'], datasets: [{ data: [costBreakdown.fuel_cost || 0, costBreakdown.rental_cost || 0], backgroundColor: ['#6366f1', '#f59e0b'] }] },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                    data: {
+                        labels: ['Yolda', 'Beklemede', 'Teslim Edildi'],
+                        datasets: [{
+                            data: [statusData.yolda, statusData.beklemede, statusData.teslim],
+                            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
+                            borderWidth: 0,
+                            cutout: '65%'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { 
+                                    color: '#e2e8f0',
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? Math.round((context.raw / total) * 100) : 0;
+                                        return `${context.label}: ${context.raw} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 });
-                new Chart(document.getElementById('stationChart'), {
+                
+                // ====== 3. Maliyet Dağılımı (Donut) ======
+                costChartInstance = new Chart(document.getElementById('costChart'), {
+                    type: 'doughnut',
+                    data: { 
+                        labels: ['Yakıt Maliyeti', 'Kiralama Maliyeti'], 
+                        datasets: [{ 
+                            data: [costBreakdown.fuel_cost || 0, costBreakdown.rental_cost || 0], 
+                            backgroundColor: ['#3b82f6', '#f59e0b'],
+                            borderWidth: 0,
+                            cutout: '65%'
+                        }] 
+                    },
+                    options: { 
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { 
+                                position: 'bottom',
+                                labels: { 
+                                    color: '#e2e8f0',
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    generateLabels: function(chart) {
+                                        const data = chart.data;
+                                        return data.labels.map((label, i) => ({
+                                            text: `${label}: ${data.datasets[0].data[i].toFixed(0)} ₺`,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            hidden: false,
+                                            index: i,
+                                            pointStyle: 'circle'
+                                        }));
+                                    }
+                                }
+                            }
+                        } 
+                    }
+                });
+                
+                // ====== 4. İstasyon Bazlı Kargo (Yatay Bar) ======
+                const stationLabels = stationSummary.map(s => s.station_name);
+                const pendingData = stationSummary.map(s => s.cargo_count);
+                
+                // Teslim edilen kargoları istasyona göre hesapla
+                const deliveredByStation = {};
+                allCargos.filter(c => c.status === 'delivered').forEach(c => {
+                    const station = stationSummary.find(s => s.station_id === c.source_station_id);
+                    if (station) {
+                        deliveredByStation[station.station_name] = (deliveredByStation[station.station_name] || 0) + 1;
+                    }
+                });
+                const deliveredData = stationLabels.map(name => deliveredByStation[name] || 0);
+                
+                stationChartInstance = new Chart(document.getElementById('stationChart'), {
                     type: 'bar',
-                    data: { labels: stationSummary.map(s => s.station_name), datasets: [{ label: 'Kargo Sayısı', data: stationSummary.map(s => s.cargo_count), backgroundColor: '#6366f1' }] },
-                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                    data: { 
+                        labels: stationLabels, 
+                        datasets: [
+                            { 
+                                label: 'Beklemede', 
+                                data: pendingData, 
+                                backgroundColor: '#f59e0b',
+                                borderRadius: 4
+                            },
+                            { 
+                                label: 'Teslim', 
+                                data: deliveredData, 
+                                backgroundColor: '#10b981',
+                                borderRadius: 4
+                            }
+                        ] 
+                    },
+                    options: { 
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { 
+                                position: 'bottom',
+                                labels: { color: '#e2e8f0', padding: 15 }
+                            } 
+                        }, 
+                        scales: { 
+                            x: { 
+                                beginAtZero: true,
+                                ticks: { color: '#94a3b8', stepSize: 5 },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            },
+                            y: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { display: false }
+                            }
+                        } 
+                    }
                 });
-            } catch (error) { console.error('Error loading analytics:', error); }
+                
+                // ====== 5. Günlük Sefer ve Maliyet (Combo Chart) ======
+                const tripTrendData = getTripTrendData(trips, last14Days);
+                
+                tripCostChartInstance = new Chart(document.getElementById('tripCostChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: last14Days.map(d => d.label),
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Sefer Sayısı',
+                                data: tripTrendData.counts,
+                                backgroundColor: '#8b5cf6',
+                                borderRadius: 4,
+                                yAxisID: 'y'
+                            },
+                            {
+                                type: 'line',
+                                label: 'Maliyet (₺)',
+                                data: tripTrendData.costs,
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                tension: 0.4,
+                                pointRadius: 4,
+                                pointBackgroundColor: '#f59e0b',
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#e2e8f0', padding: 15 }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                position: 'left',
+                                beginAtZero: true,
+                                ticks: { color: '#94a3b8', stepSize: 1 },
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                title: { display: false }
+                            },
+                            y1: {
+                                type: 'linear',
+                                position: 'right',
+                                beginAtZero: true,
+                                ticks: { color: '#f59e0b' },
+                                grid: { display: false }
+                            },
+                            x: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(255,255,255,0.05)' }
+                            }
+                        }
+                    }
+                });
+                
+                // ====== 6. Kargo Ağırlık Dağılımı ======
+                const weightRanges = getWeightDistribution(allCargos);
+                
+                weightDistChartInstance = new Chart(document.getElementById('weightDistChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['0-50 kg', '50-100 kg', '100-200 kg', '200-500 kg', '500+ kg'],
+                        datasets: [{
+                            label: 'Kargo Sayısı',
+                            data: weightRanges,
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            },
+                            x: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+                
+                // ====== 7. Araç Performans Tablosu ======
+                renderVehiclePerformanceTable(vehicleBreakdown);
+                
+            } catch (error) { 
+                console.error('Error loading analytics:', error); 
+                showToast('Analiz verileri yüklenemedi', 'error');
+            }
+        }
+        
+        // Yardımcı fonksiyonlar
+        function getLast14Days() {
+            const days = [];
+            for (let i = 13; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                days.push({
+                    date: date.toISOString().split('T')[0],
+                    label: `${date.getDate()}.${date.getMonth() + 1}`
+                });
+            }
+            return days;
+        }
+        
+        function getCargoTrendData(cargos, days) {
+            const cargosByDate = {};
+            cargos.forEach(c => {
+                if (c.created_at) {
+                    const date = c.created_at.split('T')[0];
+                    cargosByDate[date] = (cargosByDate[date] || 0) + 1;
+                }
+            });
+            return days.map(d => cargosByDate[d.date] || 0);
+        }
+        
+        function getTripTrendData(trips, days) {
+            const tripsByDate = {};
+            const costsByDate = {};
+            
+            trips.forEach(t => {
+                if (t.date) {
+                    const date = t.date.split('T')[0];
+                    tripsByDate[date] = (tripsByDate[date] || 0) + 1;
+                    costsByDate[date] = (costsByDate[date] || 0) + (t.total_cost || 0);
+                }
+            });
+            
+            return {
+                counts: days.map(d => tripsByDate[d.date] || 0),
+                costs: days.map(d => costsByDate[d.date] || 0)
+            };
+        }
+        
+        function getWeightDistribution(cargos) {
+            const ranges = [0, 0, 0, 0, 0]; // 0-50, 50-100, 100-200, 200-500, 500+
+            
+            cargos.forEach(c => {
+                const w = c.weight || 0;
+                if (w <= 50) ranges[0]++;
+                else if (w <= 100) ranges[1]++;
+                else if (w <= 200) ranges[2]++;
+                else if (w <= 500) ranges[3]++;
+                else ranges[4]++;
+            });
+            
+            return ranges;
+        }
+        
+        function renderVehiclePerformanceTable(vehicles) {
+            const tbody = document.getElementById('vehiclePerformanceBody');
+            
+            if (!vehicles || vehicles.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Araç performans verisi bulunamadı</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = vehicles.map(v => `
+                <tr>
+                    <td>
+                        <strong class="${v.vehicle.is_rental ? 'text-warning' : 'text-white'}">${v.vehicle.name}</strong>
+                    </td>
+                    <td>
+                        <span class="badge ${v.vehicle.is_rental ? 'badge-warning' : 'badge-success'}">
+                            ${v.vehicle.is_rental ? 'Kiralık' : 'Şirket'}
+                        </span>
+                    </td>
+                    <td>${v.total_trips}</td>
+                    <td>${v.total_distance.toFixed(1)} km</td>
+                    <td>${v.total_cargos}</td>
+                    <td>${v.total_weight.toFixed(1)} kg</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-grow-1" style="height: 8px; background: rgba(255,255,255,0.1);">
+                                <div class="progress-bar ${v.efficiency > 80 ? 'bg-success' : v.efficiency > 50 ? 'bg-warning' : 'bg-danger'}" 
+                                     style="width: ${Math.min(v.efficiency, 100)}%"></div>
+                            </div>
+                            <span class="small">${v.efficiency.toFixed(0)}%</span>
+                        </div>
+                    </td>
+                    <td><strong class="text-success">${v.total_cost.toFixed(0)} ₺</strong></td>
+                </tr>
+            `).join('');
+        }
+        
+        function refreshAnalytics() {
+            showToast('Analiz verileri yenileniyor...', 'info');
+            loadAnalyticsData();
         }
 
+        // ==================== KULLANICI YÖNETİMİ ====================
+        async function loadUsersData() {
+            try {
+                const [users, cargos] = await Promise.all([
+                    fetch('/api/users').then(r => r.json()),
+                    fetch('/api/cargos').then(r => r.json())
+                ]);
+                
+                // İstatistikler
+                const totalUsers = users.length;
+                const activeUsers = users.filter(u => u.is_active).length;
+                const adminUsers = users.filter(u => u.role === 'admin').length;
+                
+                // Kargo gönderen kullanıcıları say
+                const userIdsWithCargos = new Set(cargos.filter(c => c.user_id).map(c => c.user_id));
+                const usersWithCargos = userIdsWithCargos.size;
+                
+                document.getElementById('totalUsersCount').textContent = totalUsers;
+                document.getElementById('activeUsersCount').textContent = activeUsers;
+                document.getElementById('adminUsersCount').textContent = adminUsers;
+                document.getElementById('usersWithCargosCount').textContent = usersWithCargos;
+                
+                // Her kullanıcının kargo sayısını hesapla
+                const userCargoCount = {};
+                cargos.forEach(c => {
+                    if (c.user_id) {
+                        userCargoCount[c.user_id] = (userCargoCount[c.user_id] || 0) + 1;
+                    }
+                });
+                
+                // Tablo
+                document.getElementById('usersTableBody').innerHTML = users.map(u => `
+                    <tr>
+                        <td><span class="badge bg-secondary">#${u.id}</span></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="user-avatar-small" style="width: 35px; height: 35px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.8rem;">
+                                    ${u.full_name ? u.full_name.charAt(0).toUpperCase() : 'U'}
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">${u.full_name || '-'}</div>
+                                    <small class="text-muted">${userCargoCount[u.id] || 0} kargo</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><a href="mailto:${u.email}" class="text-decoration-none">${u.email}</a></td>
+                        <td>${u.phone || '-'}</td>
+                        <td>
+                            <span class="badge ${u.role === 'admin' ? 'bg-danger' : 'bg-primary'}">
+                                ${u.role === 'admin' ? 'Admin' : 'Kullanıcı'}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge ${u.is_active ? 'bg-success' : 'bg-secondary'}">
+                                ${u.is_active ? 'Aktif' : 'Pasif'}
+                            </span>
+                        </td>
+                        <td><small>${u.created_at ? new Date(u.created_at).toLocaleDateString('tr-TR') : '-'}</small></td>
+                        <td><small>${u.last_login ? new Date(u.last_login).toLocaleString('tr-TR') : 'Hiç giriş yapmadı'}</small></td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-${u.is_active ? 'warning' : 'success'}" onclick="toggleUserStatus(${u.id}, ${u.is_active})" title="${u.is_active ? 'Devre Dışı Bırak' : 'Aktifleştir'}">
+                                    <i class="bi bi-${u.is_active ? 'pause-fill' : 'play-fill'}"></i>
+                                </button>
+                                <button class="btn btn-outline-info" onclick="changeUserRole(${u.id}, '${u.role}')" title="Rol Değiştir">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteUser(${u.id})" title="Sil">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) { 
+                console.error('Error loading users:', error); 
+                showToast('Kullanıcılar yüklenirken hata oluştu', 'error');
+            }
+        }
+        
+        async function toggleUserStatus(userId, currentStatus) {
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: !currentStatus })
+                });
+                if (response.ok) {
+                    showToast(`Kullanıcı ${currentStatus ? 'devre dışı bırakıldı' : 'aktifleştirildi'}`, 'success');
+                    loadUsersData();
+                } else {
+                    const result = await response.json();
+                    showToast(result.error || 'Hata oluştu', 'error');
+                }
+            } catch (error) { showToast('Bir hata oluştu', 'error'); }
+        }
+        
+        async function changeUserRole(userId, currentRole) {
+            const newRole = currentRole === 'admin' ? 'user' : 'admin';
+            if (!confirm(`Bu kullanıcıyı ${newRole === 'admin' ? 'admin' : 'normal kullanıcı'} yapmak istediğinize emin misiniz?`)) return;
+            
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: newRole })
+                });
+                if (response.ok) {
+                    showToast(`Kullanıcı rolü ${newRole === 'admin' ? 'admin' : 'kullanıcı'} olarak değiştirildi`, 'success');
+                    loadUsersData();
+                } else {
+                    const result = await response.json();
+                    showToast(result.error || 'Hata oluştu', 'error');
+                }
+            } catch (error) { showToast('Bir hata oluştu', 'error'); }
+        }
+        
+        async function deleteUser(userId) {
+            if (!confirm('Bu kullanıcıyı silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) return;
+            
+            try {
+                const response = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showToast('Kullanıcı silindi', 'success');
+                    loadUsersData();
+                } else {
+                    const result = await response.json();
+                    showToast(result.error || 'Silinemedi', 'error');
+                }
+            } catch (error) { showToast('Bir hata oluştu', 'error'); }
+        }
+
+        // ==================== YÖNETİCİ YÖNETİMİ ====================
         async function loadAdminsData() {
             try {
                 const admins = await fetch('/api/admins').then(r => r.json());
@@ -1625,6 +3162,621 @@
                 console.error(error);
             }
             showLoading(false);
+        }
+        
+        // ==================== TOPLU KARGO ====================
+        
+        // Araç rota detayları (mevcut seferler için)
+        async function loadVehicleRoutesData() {
+            try {
+                const response = await fetch('/api/analytics/vehicle-routes');
+                const routes = await response.json();
+                
+                if (routes.length === 0) {
+                    return;
+                }
+                
+                let totalCost = 0;
+                let totalDistance = 0;
+                
+                routes.forEach(r => {
+                    totalCost += r.total_cost;
+                    totalDistance += r.total_distance;
+                });
+                
+                console.log('Araç Rotaları:', routes);
+                console.log('Toplam Maliyet:', totalCost, 'Toplam Mesafe:', totalDistance);
+                
+            } catch (error) {
+                console.error('Error loading vehicle routes:', error);
+            }
+        }
+        
+        let stationsForBulk = [];
+        
+        async function openBulkCargoModal() {
+            // İstasyonları yükle
+            try {
+                const response = await fetch('/api/stations');
+                const stations = await response.json();
+                stationsForBulk = stations.filter(s => !s.is_depot);
+                
+                const tbody = document.getElementById('bulkCargoTableBody');
+                tbody.innerHTML = stationsForBulk.map(station => `
+                    <tr>
+                        <td><strong>${station.name}</strong></td>
+                        <td><input type="number" class="form-control form-control-sm bulk-count" 
+                            data-station="${station.name}" min="0" value="0" onchange="updateBulkTotals()"></td>
+                        <td><input type="number" class="form-control form-control-sm bulk-weight" 
+                            data-station="${station.name}" min="0.5" step="0.5" value="10" onchange="updateBulkTotals()"></td>
+                    </tr>
+                `).join('');
+                
+                updateBulkTotals();
+                new bootstrap.Modal(document.getElementById('bulkCargoModal')).show();
+            } catch (error) {
+                showToast('İstasyonlar yüklenemedi', 'error');
+            }
+        }
+        
+        function updateBulkTotals() {
+            let totalCount = 0;
+            let totalWeight = 0;
+            
+            document.querySelectorAll('.bulk-count').forEach((input, index) => {
+                const count = parseInt(input.value) || 0;
+                const weightInput = document.querySelectorAll('.bulk-weight')[index];
+                const avgWeight = parseFloat(weightInput.value) || 10;
+                
+                totalCount += count;
+                totalWeight += count * avgWeight;
+            });
+            
+            document.getElementById('bulkTotalCount').textContent = totalCount;
+            document.getElementById('bulkTotalWeight').textContent = Math.round(totalWeight) + ' kg';
+            
+            // Kapasite durumu (2250 kg varsayılan)
+            const capacityStatus = document.getElementById('bulkCapacityStatus');
+            if (totalWeight <= 2250) {
+                capacityStatus.innerHTML = '<span class="text-success">✓ Yeterli</span>';
+            } else {
+                capacityStatus.innerHTML = '<span class="text-warning">⚠ Kiralama Gerekli</span>';
+            }
+        }
+        
+        async function submitBulkCargo() {
+            const cargos = [];
+            
+            document.querySelectorAll('.bulk-count').forEach((input, index) => {
+                const count = parseInt(input.value) || 0;
+                if (count > 0) {
+                    const station = input.dataset.station;
+                    const weightInput = document.querySelectorAll('.bulk-weight')[index];
+                    const avgWeight = parseFloat(weightInput.value) || 10;
+                    
+                    cargos.push({
+                        station_name: station,
+                        count: count,
+                        avg_weight: avgWeight
+                    });
+                }
+            });
+            
+            if (cargos.length === 0) {
+                showToast('En az bir ilçe için kargo sayısı girin', 'warning');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch('/api/cargos/bulk-add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cargos })
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast(result.message, 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('bulkCargoModal')).hide();
+                    loadCargosData();
+                    loadDashboardData();
+                } else {
+                    showToast(result.error || 'Kargolar eklenemedi', 'error');
+                }
+            } catch (error) {
+                showToast('Bir hata oluştu', 'error');
+                console.error(error);
+            }
+            showLoading(false);
+        }
+        
+        // ==================== SİMÜLASYON SİSTEMİ ====================
+        
+        let simulationState = {
+            isRunning: false,
+            isPaused: false,
+            speed: 4, // Varsayılan hız 2x -> 4x artırıldı
+            vehicles: [],
+            routes: [],
+            animationFrameId: null,
+            startTime: null,
+            elapsedTime: 0,
+            collectedCargos: 0,
+            totalCargos: 0,
+            completedRoutes: 0,
+            totalDistance: 0,
+            coveredDistance: 0
+        };
+        
+        let vehicleMarkers = [];
+        let routePolylines = [];
+        
+        // Araç ikonu oluştur
+        function createVehicleIcon(color, rotation = 0) {
+            return L.divIcon({
+                className: 'vehicle-marker',
+                html: `<div style="transform: rotate(${rotation}deg);">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 8H17V4H3C1.9 4 1 4.9 1 6V17H3C3 18.66 4.34 20 6 20C7.66 20 9 18.66 9 17H15C15 18.66 16.34 20 18 20C19.66 20 21 18.66 21 17H23V12L20 8ZM6 18.5C5.17 18.5 4.5 17.83 4.5 17C4.5 16.17 5.17 15.5 6 15.5C6.83 15.5 7.5 16.17 7.5 17C7.5 17.83 6.83 18.5 6 18.5ZM19.5 9.5L21.46 12H17V9.5H19.5ZM18 18.5C17.17 18.5 16.5 17.83 16.5 17C16.5 16.17 17.17 15.5 18 15.5C18.83 15.5 19.5 16.17 19.5 17C19.5 17.83 18.83 18.5 18 18.5Z"/>
+                    </svg>
+                </div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+        }
+        
+        // Simülasyon başlat
+        async function startSimulation() {
+            if (simulationState.isRunning && !simulationState.isPaused) {
+                return;
+            }
+            
+            if (simulationState.isPaused) {
+                // Resume
+                simulationState.isPaused = false;
+                updateSimButtons();
+                addActivity('info', 'Simülasyon devam ediyor...');
+                animateVehicles();
+                return;
+            }
+            
+            // Yeni simülasyon başlat
+            try {
+                const response = await fetch('/api/analytics/vehicle-routes');
+                const routes = await response.json();
+                
+                if (routes.length === 0) {
+                    // Demo rota oluştur
+                    showToast('Rota optimizasyonu yapılmamış. Demo simülasyon başlatılıyor...', 'info');
+                    await startDemoSimulation();
+                    return;
+                }
+                
+                initializeSimulation(routes);
+            } catch (error) {
+                console.error('Simülasyon başlatılamadı:', error);
+                showToast('Demo simülasyon başlatılıyor...', 'info');
+                await startDemoSimulation();
+            }
+        }
+        
+        // Demo simülasyon (rota yoksa)
+        async function startDemoSimulation() {
+            // Basit demo rotası oluştur
+            const demoRoutes = [
+                {
+                    vehicle_id: 1,
+                    vehicle_plate: 'DEMO-001',
+                    route_geometry: null,
+                    stations: ['İzmit', 'Gebze', 'Körfez'],
+                    total_distance: 45,
+                    cargo_count: 8
+                },
+                {
+                    vehicle_id: 2,
+                    vehicle_plate: 'DEMO-002',
+                    route_geometry: null,
+                    stations: ['Kartepe', 'Başiskele', 'Derince'],
+                    total_distance: 38,
+                    cargo_count: 6
+                }
+            ];
+            
+            initializeSimulation(demoRoutes);
+        }
+        
+        // Simülasyonu hazırla
+        function initializeSimulation(routes) {
+            // Mevcut simülasyonu temizle
+            clearSimulation();
+            
+            simulationState.isRunning = true;
+            simulationState.isPaused = false;
+            simulationState.startTime = Date.now();
+            simulationState.elapsedTime = 0;
+            simulationState.collectedCargos = 0;
+            simulationState.completedRoutes = 0;
+            simulationState.coveredDistance = 0;
+            simulationState.routes = routes;
+            
+            // Toplam kargo ve mesafe hesapla - GERÇEK değerleri API'den al
+            simulationState.totalCargos = routes.reduce((sum, r) => sum + (r.cargo_count || 0), 0);
+            simulationState.totalDistance = routes.reduce((sum, r) => sum + (r.total_distance || 0), 0);
+            
+            // Gerçek kargo sayısını UI'da göster
+            console.log('Simülasyon: Toplam ' + simulationState.totalCargos + ' kargo, ' + simulationState.totalDistance.toFixed(1) + ' km');
+            
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+            
+            // Her rota için araç oluştur
+            routes.forEach((route, index) => {
+                const color = colors[index % colors.length];
+                let routeCoords = [];
+                
+                // OSRM geometry varsa decode et
+                if (route.route_geometry) {
+                    routeCoords = decodePolyline(route.route_geometry);
+                } else {
+                    // Fallback: istasyonlardan koordinat al
+                    routeCoords = getStationCoordinates(route.stations);
+                }
+                
+                if (routeCoords.length < 2) {
+                    console.warn('Geçersiz rota koordinatları:', route);
+                    return;
+                }
+                
+                // Rota çizgisi ekle
+                const polyline = L.polyline(routeCoords, {
+                    color: color,
+                    weight: 4,
+                    opacity: 0.7,
+                    dashArray: '10, 10'
+                }).addTo(adminMap);
+                routePolylines.push(polyline);
+                
+                // Araç marker'ı oluştur
+                const vehicleMarker = L.marker(routeCoords[0], {
+                    icon: createVehicleIcon(color)
+                }).addTo(adminMap);
+                
+                vehicleMarker.bindPopup(`
+                    <strong>${route.vehicle_plate || 'Araç ' + (index + 1)}</strong><br>
+                    <small>Kargo: ${route.cargo_count || 0} adet</small><br>
+                    <small>Mesafe: ${route.total_distance?.toFixed(1) || 0} km</small>
+                `);
+                
+                vehicleMarkers.push(vehicleMarker);
+                
+                // Araç durumu
+                simulationState.vehicles.push({
+                    marker: vehicleMarker,
+                    route: routeCoords,
+                    currentIndex: 0,
+                    progress: 0,
+                    color: color,
+                    plate: route.vehicle_plate || 'Araç ' + (index + 1),
+                    cargoCount: route.cargo_count || 0,
+                    distance: route.total_distance || 0,
+                    completed: false,
+                    stations: route.stations || []
+                });
+            });
+            
+            // UI güncelle
+            updateSimButtons();
+            document.getElementById('simStatusOverlay').style.display = 'block';
+            document.getElementById('simStatsRow').style.display = 'block';
+            
+            document.getElementById('simTotalVehicles').textContent = simulationState.vehicles.length;
+            document.getElementById('simActiveVehicles').textContent = simulationState.vehicles.length;
+            
+            addActivity('success', `Simülasyon başlatıldı! ${simulationState.vehicles.length} araç, ${simulationState.totalCargos} kargo`);
+            
+            // Animasyonu başlat
+            animateVehicles();
+        }
+        
+        // İstasyon koordinatlarını al
+        function getStationCoordinates(stations) {
+            const stationCoords = {
+                'Kocaeli Üniversitesi': [40.8225, 29.9213],
+                'İzmit': [40.7654, 29.9408],
+                'Gebze': [40.8027, 29.4304],
+                'Körfez': [40.7588, 29.7633],
+                'Gölcük': [40.7170, 29.8330],
+                'Kartepe': [40.6861, 30.0328],
+                'Başiskele': [40.7236, 29.8953],
+                'Derince': [40.7530, 29.8333],
+                'Çayırova': [40.8264, 29.3803],
+                'Darıca': [40.7694, 29.3781],
+                'Dilovası': [40.7842, 29.5311],
+                'Kandıra': [41.0711, 30.1503],
+                'Karamürsel': [40.6906, 29.6167]
+            };
+            
+            const coords = [[40.8225, 29.9213]]; // Depo
+            
+            stations.forEach(station => {
+                const coord = stationCoords[station];
+                if (coord) {
+                    coords.push(coord);
+                }
+            });
+            
+            // Depoya dön
+            coords.push([40.8225, 29.9213]);
+            
+            return coords;
+        }
+        
+        // Polyline decode (OSRM format)
+        function decodePolyline(encoded) {
+            const coords = [];
+            let index = 0, lat = 0, lng = 0;
+            
+            while (index < encoded.length) {
+                let b, shift = 0, result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += dlat;
+                
+                shift = 0;
+                result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lng += dlng;
+                
+                coords.push([lat / 1e5, lng / 1e5]);
+            }
+            
+            return coords;
+        }
+        
+        // Araçları animasyonla hareket ettir
+        function animateVehicles() {
+            if (!simulationState.isRunning || simulationState.isPaused) {
+                return;
+            }
+            
+            const speed = simulationState.speed;
+            let allCompleted = true;
+            
+            simulationState.vehicles.forEach(vehicle => {
+                if (vehicle.completed) return;
+                
+                allCompleted = false;
+                
+                // İlerleme hesapla - HIZ ARTIRILDI (0.002 -> 0.015)
+                vehicle.progress += 0.015 * speed;
+                
+                if (vehicle.progress >= 1) {
+                    vehicle.currentIndex++;
+                    vehicle.progress = 0;
+                    
+                    // İstasyona ulaşıldı
+                    if (vehicle.currentIndex < vehicle.route.length - 1) {
+                        const stationName = vehicle.stations[vehicle.currentIndex - 1] || `Nokta ${vehicle.currentIndex}`;
+                        
+                        // Kargo sayısını hesapla - her istasyonda eşit dağıt
+                        if (!vehicle.cargosPerStop) {
+                            const totalStops = Math.max(1, vehicle.route.length - 2); // Depo hariç
+                            vehicle.cargosPerStop = Math.ceil(vehicle.cargoCount / totalStops);
+                            vehicle.remainingCargos = vehicle.cargoCount;
+                        }
+                        
+                        // Bu durakta toplanan kargo
+                        const cargosThisStop = Math.min(vehicle.cargosPerStop, vehicle.remainingCargos);
+                        if (cargosThisStop > 0) {
+                            vehicle.remainingCargos -= cargosThisStop;
+                            simulationState.collectedCargos += cargosThisStop;
+                            addActivity('warning', `🚚 ${vehicle.plate}: ${stationName} noktasından ${cargosThisStop} kargo toplandı`);
+                        }
+                    }
+                }
+                
+                if (vehicle.currentIndex >= vehicle.route.length - 1) {
+                    // Rota tamamlandı
+                    vehicle.completed = true;
+                    simulationState.completedRoutes++;
+                    addActivity('success', `✅ ${vehicle.plate} rotayı tamamladı ve depoya döndü!`);
+                    
+                    // Araç ikonunu depoya koy
+                    vehicle.marker.setLatLng(vehicle.route[vehicle.route.length - 1]);
+                    return;
+                }
+                
+                // Ara konum hesapla
+                const from = vehicle.route[vehicle.currentIndex];
+                const to = vehicle.route[vehicle.currentIndex + 1];
+                const lat = from[0] + (to[0] - from[0]) * vehicle.progress;
+                const lng = from[1] + (to[1] - from[1]) * vehicle.progress;
+                
+                // Yön hesapla
+                const angle = Math.atan2(to[1] - from[1], to[0] - from[0]) * 180 / Math.PI;
+                
+                vehicle.marker.setLatLng([lat, lng]);
+                vehicle.marker.setIcon(createVehicleIcon(vehicle.color, angle - 90));
+            });
+            
+            // İstatistikleri güncelle
+            updateSimStats();
+            
+            if (allCompleted) {
+                finishSimulation();
+                return;
+            }
+            
+            simulationState.animationFrameId = requestAnimationFrame(animateVehicles);
+        }
+        
+        // Simülasyon istatistiklerini güncelle
+        function updateSimStats() {
+            const now = Date.now();
+            simulationState.elapsedTime = Math.floor((now - simulationState.startTime) / 1000);
+            
+            // Aktif araç sayısı
+            const activeCount = simulationState.vehicles.filter(v => !v.completed).length;
+            document.getElementById('simActiveVehicles').textContent = activeCount;
+            
+            // Tamamlanan rotalar
+            document.getElementById('simCompletedRoutes').textContent = simulationState.completedRoutes;
+            
+            // Toplanan kargolar - sadece gerçek toplanan kargo sayısı
+            const realCollected = Math.min(simulationState.collectedCargos, simulationState.totalCargos);
+            document.getElementById('simCollectedCargos').textContent = realCollected;
+            document.getElementById('simDeliveredCargos').textContent = realCollected;
+            
+            // Kat edilen mesafe
+            let totalProgress = 0;
+            simulationState.vehicles.forEach(v => {
+                const routeProgress = (v.currentIndex + v.progress) / (v.route.length - 1);
+                totalProgress += routeProgress * v.distance;
+            });
+            document.getElementById('simTotalDistance').textContent = totalProgress.toFixed(1) + ' km';
+            
+            // Geçen süre
+            const mins = Math.floor(simulationState.elapsedTime / 60);
+            const secs = simulationState.elapsedTime % 60;
+            document.getElementById('simElapsedTime').textContent = 
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            
+            // Progress bar
+            const overallProgress = simulationState.vehicles.length > 0 ?
+                simulationState.vehicles.reduce((sum, v) => {
+                    return sum + (v.completed ? 1 : (v.currentIndex + v.progress) / (v.route.length - 1));
+                }, 0) / simulationState.vehicles.length * 100 : 0;
+            
+            document.getElementById('simProgressBar').style.width = overallProgress + '%';
+            document.getElementById('simProgressPercent').textContent = Math.round(overallProgress) + '%';
+        }
+        
+        // Simülasyonu duraklat
+        function pauseSimulation() {
+            simulationState.isPaused = true;
+            if (simulationState.animationFrameId) {
+                cancelAnimationFrame(simulationState.animationFrameId);
+            }
+            updateSimButtons();
+            addActivity('warning', 'Simülasyon duraklatıldı');
+        }
+        
+        // Simülasyonu durdur
+        function stopSimulation() {
+            clearSimulation();
+            addActivity('danger', 'Simülasyon durduruldu');
+            showToast('Simülasyon durduruldu', 'warning');
+        }
+        
+        // Simülasyonu temizle
+        function clearSimulation() {
+            simulationState.isRunning = false;
+            simulationState.isPaused = false;
+            
+            if (simulationState.animationFrameId) {
+                cancelAnimationFrame(simulationState.animationFrameId);
+            }
+            
+            // Marker ve polyline temizle
+            vehicleMarkers.forEach(m => adminMap.removeLayer(m));
+            routePolylines.forEach(p => adminMap.removeLayer(p));
+            vehicleMarkers = [];
+            routePolylines = [];
+            
+            simulationState.vehicles = [];
+            simulationState.routes = [];
+            
+            // UI gizle
+            document.getElementById('simStatusOverlay').style.display = 'none';
+            document.getElementById('simStatsRow').style.display = 'none';
+            
+            updateSimButtons();
+        }
+        
+        // Simülasyon tamamlandı
+        function finishSimulation() {
+            simulationState.isRunning = false;
+            addActivity('success', `🎉 Simülasyon tamamlandı! Toplam ${simulationState.totalCargos} kargo toplandı.`);
+            showToast('Simülasyon başarıyla tamamlandı!', 'success');
+            
+            document.getElementById('simProgressBar').style.width = '100%';
+            document.getElementById('simProgressPercent').textContent = '100%';
+            
+            updateSimButtons();
+        }
+        
+        // Butonları güncelle
+        function updateSimButtons() {
+            const btnStart = document.getElementById('btnStartSim');
+            const btnPause = document.getElementById('btnPauseSim');
+            const btnStop = document.getElementById('btnStopSim');
+            
+            if (simulationState.isRunning && !simulationState.isPaused) {
+                btnStart.style.display = 'none';
+                btnPause.style.display = 'inline-block';
+                btnStop.style.display = 'inline-block';
+            } else if (simulationState.isPaused) {
+                btnStart.style.display = 'inline-block';
+                btnStart.innerHTML = '<i class="bi bi-play-fill"></i> Devam';
+                btnPause.style.display = 'none';
+                btnStop.style.display = 'inline-block';
+            } else {
+                btnStart.style.display = 'inline-block';
+                btnStart.innerHTML = '<i class="bi bi-play-fill"></i> Simülasyon';
+                btnPause.style.display = 'none';
+                btnStop.style.display = 'none';
+            }
+        }
+        
+        // Simülasyon hızını değiştir
+        function changeSimSpeed() {
+            simulationState.speed = parseInt(document.getElementById('simSpeed').value);
+            if (simulationState.isRunning) {
+                addActivity('info', `Simülasyon hızı: ${simulationState.speed}x`);
+            }
+        }
+        
+        // Aktivite akışına ekle
+        function addActivity(type, message) {
+            const feed = document.getElementById('liveActivityFeed');
+            const time = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            const iconMap = {
+                'success': 'bi-check-circle',
+                'warning': 'bi-exclamation-triangle',
+                'danger': 'bi-x-circle',
+                'info': 'bi-info-circle',
+                'primary': 'bi-truck'
+            };
+            
+            const item = document.createElement('div');
+            item.className = 'activity-item p-3 border-bottom';
+            item.style.borderColor = 'rgba(255,255,255,0.1)';
+            item.innerHTML = `
+                <div class="d-flex align-items-start gap-2">
+                    <div class="activity-icon bg-${type}"><i class="bi ${iconMap[type] || 'bi-circle'}"></i></div>
+                    <div>
+                        <div class="small text-muted">${time}</div>
+                        <div class="text-white">${message}</div>
+                    </div>
+                </div>
+            `;
+            
+            feed.insertBefore(item, feed.firstChild);
+            
+            // Maksimum 20 aktivite tut
+            while (feed.children.length > 20) {
+                feed.removeChild(feed.lastChild);
+            }
         }
         
         // Admin Background Slider

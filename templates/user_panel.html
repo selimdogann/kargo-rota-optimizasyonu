@@ -335,6 +335,22 @@
             </div>
             <span>Kocaeli Kargo</span>
         </div>
+        
+        {% if user %}
+        <!-- Kullanıcı Bilgisi -->
+        <div class="user-info mb-4 p-3" style="background: rgba(59, 130, 246, 0.1); border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.2);">
+            <div class="d-flex align-items-center gap-3">
+                <div class="user-avatar" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-person-fill text-white fs-5"></i>
+                </div>
+                <div>
+                    <div class="text-white fw-semibold" style="font-size: 0.95rem;">{{ user.full_name }}</div>
+                    <div class="text-white-50" style="font-size: 0.8rem;">{{ user.email }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <nav class="nav flex-column">
             <a class="nav-link active" href="#send" data-section="send">
                 <i class="bi bi-box-seam"></i> Kargo Gönder
@@ -352,8 +368,14 @@
             <a class="nav-link" href="/">
                 <i class="bi bi-house"></i> Ana Sayfa
             </a>
+            {% if user and user.role == 'admin' %}
             <a class="nav-link" href="/admin">
                 <i class="bi bi-gear"></i> Yönetici Paneli
+            </a>
+            {% endif %}
+            <hr style="border-color: rgba(255,255,255,0.1);">
+            <a class="nav-link text-danger" href="/logout">
+                <i class="bi bi-box-arrow-right"></i> Çıkış Yap
             </a>
         </nav>
     </div>
@@ -398,9 +420,24 @@
                                     <div class="invalid-feedback">Alıcı adı zorunludur (en az 2 karakter).</div>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Kargo Ağırlığı (kg) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" id="weight" min="0.1" max="1000" step="0.1" required placeholder="Örn: 50">
-                                    <div class="invalid-feedback">Ağırlık 0.1 - 1000 kg arasında olmalıdır.</div>
+                                    <label class="form-label">Kargo Adedi <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="cargoCount" min="1" max="100" value="1" required>
+                                        <span class="input-group-text">adet</span>
+                                    </div>
+                                    <small class="text-muted">Göndermek istediğiniz toplam kargo adedini giriniz (1-100 arası).</small>
+                                    <div class="invalid-feedback">Kargo adedi 1-100 arasında olmalıdır.</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Toplam Ağırlık (kg) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="weight" min="0.1" max="10000" step="0.1" required placeholder="Örn: 300">
+                                    <small class="text-muted">Tüm kargoların toplam ağırlığını giriniz. Her kargo için ağırlık otomatik hesaplanır.</small>
+                                    <div class="invalid-feedback">Toplam ağırlık 0.1 - 10000 kg arasında olmalıdır.</div>
+                                </div>
+                                <div class="mb-3" id="weightPerCargoInfo" style="display: none;">
+                                    <div class="alert alert-info py-2 mb-0" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
+                                        <small><i class="bi bi-calculator"></i> Her kargo için: <strong id="weightPerCargoValue">0</strong> kg</small>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Gönderim Yapılacak İlçe <span class="text-danger">*</span></label>
@@ -541,7 +578,27 @@
             
             // Form submit
             document.getElementById('cargoForm').addEventListener('submit', submitCargo);
+            
+            // Kargo adedi ve ağırlık değiştiğinde kargo başına ağırlığı hesapla
+            document.getElementById('cargoCount').addEventListener('input', updateWeightPerCargo);
+            document.getElementById('weight').addEventListener('input', updateWeightPerCargo);
         });
+        
+        // Kargo başına ağırlık hesaplama fonksiyonu
+        function updateWeightPerCargo() {
+            const cargoCount = parseInt(document.getElementById('cargoCount').value) || 1;
+            const totalWeight = parseFloat(document.getElementById('weight').value) || 0;
+            const infoDiv = document.getElementById('weightPerCargoInfo');
+            const valueSpan = document.getElementById('weightPerCargoValue');
+            
+            if (totalWeight > 0 && cargoCount > 0) {
+                const perCargoWeight = (totalWeight / cargoCount).toFixed(2);
+                valueSpan.textContent = perCargoWeight;
+                infoDiv.style.display = 'block';
+            } else {
+                infoDiv.style.display = 'none';
+            }
+        }
         
         function initMap() {
             map = L.map('map').setView([40.76, 29.93], 10);
@@ -670,6 +727,7 @@
             const weight = parseFloat(document.getElementById('weight').value);
             const sourceStation = document.getElementById('sourceStation').value;
             const deliveryDate = document.getElementById('deliveryDate').value;
+            const cargoCount = parseInt(document.getElementById('cargoCount').value) || 1;
             
             // Client-side validasyon - Tanımlı olmayan bilgilerin girişini engelle
             let isValid = true;
@@ -690,12 +748,23 @@
                 document.getElementById('receiverName').classList.remove('is-invalid');
             }
             
-            // Ağırlık validasyonu
-            if (!weight || weight <= 0 || weight > 1000) {
+            // Toplam ağırlık validasyonu
+            if (!weight || weight <= 0 || weight > 10000) {
                 document.getElementById('weight').classList.add('is-invalid');
                 isValid = false;
             } else {
                 document.getElementById('weight').classList.remove('is-invalid');
+            }
+            
+            // Her kargo için ağırlık hesapla
+            const weightPerCargo = weight / cargoCount;
+            
+            // Kargo adedi validasyonu
+            if (!cargoCount || cargoCount < 1 || cargoCount > 100) {
+                document.getElementById('cargoCount').classList.add('is-invalid');
+                isValid = false;
+            } else {
+                document.getElementById('cargoCount').classList.remove('is-invalid');
             }
             
             // Kaynak istasyon validasyonu - Tanımlı ilçelerden seçim zorunlu
@@ -732,36 +801,59 @@
                 return;
             }
             
-            // Hedef otomatik olarak Kocaeli Üniversitesi (API tarafında set edilecek)
-            const cargo = {
-                sender_name: senderName,
-                receiver_name: receiverName,
-                weight: weight,
-                source_station_id: parseInt(sourceStation),
-                delivery_date: deliveryDate || null
+            // Çoklu kargo gönderimi - Ağırlık kargo sayısına bölünür
+            const sendMultipleCargos = async () => {
+                const successIds = [];
+                const errors = [];
+                const perCargoWeight = parseFloat((weight / cargoCount).toFixed(2)); // Her kargo için ağırlık
+                
+                for (let i = 0; i < cargoCount; i++) {
+                    const cargo = {
+                        sender_name: cargoCount > 1 ? `${senderName} (${i + 1}/${cargoCount})` : senderName,
+                        receiver_name: receiverName,
+                        weight: perCargoWeight, // Toplam ağırlık / kargo adedi
+                        source_station_id: parseInt(sourceStation),
+                        delivery_date: deliveryDate || null
+                    };
+                    
+                    try {
+                        const res = await fetch('/api/cargos', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(cargo)
+                        });
+                        
+                        if (!res.ok) {
+                            const err = await res.json();
+                            errors.push(err.error || 'Bilinmeyen hata');
+                        } else {
+                            const data = await res.json();
+                            successIds.push(data.id);
+                        }
+                    } catch (err) {
+                        errors.push(err.message);
+                    }
+                }
+                
+                // Sonuç mesajı
+                if (successIds.length > 0) {
+                    if (successIds.length === 1) {
+                        alert(`Kargo başarıyla oluşturuldu! Takip No: ${successIds[0]}\n\nKargonuz rota planlaması yapıldıktan sonra Kocaeli Üniversitesi'ne gönderilecektir.`);
+                    } else {
+                        alert(`${successIds.length} adet kargo başarıyla oluşturuldu!\n\nTakip Numaraları: ${successIds.join(', ')}\n\nKargolarınız rota planlaması yapıldıktan sonra Kocaeli Üniversitesi'ne gönderilecektir.`);
+                    }
+                    document.getElementById('cargoForm').reset();
+                    document.getElementById('cargoCount').value = 1;
+                    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                    loadCargos();
+                }
+                
+                if (errors.length > 0) {
+                    alert(`${errors.length} kargo gönderilemedi: ${errors[0]}`);
+                }
             };
             
-            fetch('/api/cargos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cargo)
-            })
-            .then(res => {
-                if (!res.ok) {
-                    return res.json().then(err => Promise.reject(err));
-                }
-                return res.json();
-            })
-            .then(data => {
-                alert(`Kargo başarıyla oluşturuldu! Takip No: ${data.id}\n\nKargonuz rota planlaması yapıldıktan sonra Kocaeli Üniversitesi'ne gönderilecektir.`);
-                document.getElementById('cargoForm').reset();
-                // Form alanlarından invalid class'larını temizle
-                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                loadCargos();
-            })
-            .catch(err => {
-                alert('Hata oluştu: ' + err.message);
-            });
+            sendMultipleCargos();
         }
         
         function loadCargos() {

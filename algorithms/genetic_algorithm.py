@@ -1,19 +1,20 @@
 """
 Genetik Algoritma ile CVRP (Capacitated Vehicle Routing Problem) Çözümü
 
-SENARYO: Kocaeli ilçelerinden Kocaeli Üniversitesi'ne kargo toplama
-- Araçlar Üniversite'den (depo) çıkar
-- İlçelere gider ve kargoları toplar
-- Üniversite'ye geri döner
+SENARYO: Kocaeli ilçelerinden Kocaeli Üniversitesi'ne kargo toplama (TEK YÖNLÜ)
+- Araçlar ilçelerden kargoları toplar
+- Kocaeli Üniversitesi'ne (depo) getirir
+- Tek yönlü rota: İlçe(ler) → Üniversite
 
-İKİ PROBLEM:
-1. Sınırsız Araç: Minimum maliyetle tüm kargoları taşı (gerekirse araç kirala)
-2. Belirli Araç: Sabit araçlarla maksimum kargo (sayı veya ağırlık)
+OPTİMİZASYON:
+- Coğrafi kümeleme ile yakın ilçeler aynı araca atanır
+- Uzak ilçeler farklı araçlara dağıtılır (Darıca-Karamürsel gibi)
+- Her ilçe için ayrı araç kullanmak daha mantıklı olabilir
 """
 
 import random
 import math
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Set
 import copy
 
 
@@ -21,6 +22,11 @@ class GeneticAlgorithmCVRP:
     """
     Kapasite Kısıtlı Araç Rotalama Problemi için Genetik Algoritma
     Kargo Toplama Senaryosu: İlçelerden Üniversite'ye
+    
+    YENİ ÖZELLİKLER:
+    - Coğrafi kümeleme (uzak ilçeler farklı araçlara)
+    - Mesafe bazlı ceza sistemi
+    - Akıllı araç dağıtımı
     """
     
     def __init__(
@@ -30,11 +36,12 @@ class GeneticAlgorithmCVRP:
         cargos: List,
         depot,
         distance_matrix: Dict,
-        population_size: int = 100,
-        generations: int = 500,
-        mutation_rate: float = 0.1,
-        crossover_rate: float = 0.8,
-        elite_size: int = 10
+        population_size: int = 150,
+        generations: int = 300,
+        mutation_rate: float = 0.15,
+        crossover_rate: float = 0.85,
+        elite_size: int = 15,
+        max_route_distance: float = 60.0  # Maksimum rota mesafesi (km)
     ):
         """
         Args:
@@ -48,6 +55,7 @@ class GeneticAlgorithmCVRP:
             mutation_rate: Mutasyon oranı
             crossover_rate: Çaprazlama oranı
             elite_size: Seçkinlik boyutu
+            max_route_distance: Bir rotadaki maksimum toplam mesafe
         """
         self.stations = stations
         self.vehicles = vehicles
@@ -59,6 +67,7 @@ class GeneticAlgorithmCVRP:
         self.mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
         self.elite_size = elite_size
+        self.max_route_distance = max_route_distance
         
         # Kargo KAYNAK istasyonlarını belirle (ilçeler - kargonun toplandığı yerler)
         self.pickup_stations = list(set(c.source_station for c in cargos))
@@ -68,6 +77,19 @@ class GeneticAlgorithmCVRP:
         for station in self.pickup_stations:
             total_weight = sum(c.weight for c in cargos if c.source_station_id == station.id)
             self.station_weights[station.id] = total_weight
+        
+        # İstasyonların depoya olan mesafelerini önceden hesapla
+        self.depot_distances = {}
+        for station in self.pickup_stations:
+            self.depot_distances[station.id] = self.calculate_distance(station, self.depot)
+        
+        # İstasyonlar arası mesafeleri önceden hesapla
+        self.station_distances = {}
+        for s1 in self.pickup_stations:
+            for s2 in self.pickup_stations:
+                if s1.id != s2.id:
+                    key = (s1.id, s2.id)
+                    self.station_distances[key] = self.calculate_distance(s1, s2)
     
     def calculate_distance(self, station1, station2) -> float:
         """İki istasyon arası mesafeyi hesapla"""
@@ -97,21 +119,28 @@ class GeneticAlgorithmCVRP:
         return R * c * 1.3
     
     def calculate_route_distance(self, route: List) -> float:
-        """Bir rotanın toplam mesafesini hesapla"""
+        """
+        Bir rotanın toplam mesafesini hesapla (TEK YÖNLÜ)
+        Rota: İlçe(ler) → Üniversite (depo)
+        """
         if not route:
             return 0
         
-        total_distance = self.calculate_distance(self.depot, route[0])
+        total_distance = 0
         
+        # İlçeler arası mesafe
         for i in range(len(route) - 1):
             total_distance += self.calculate_distance(route[i], route[i+1])
         
+        # Son ilçeden depoya (Üniversite'ye) gidiş
         total_distance += self.calculate_distance(route[-1], self.depot)
         
         return total_distance
     
     def calculate_route_cost(self, vehicle, route: List) -> float:
         """Bir rotanın toplam maliyetini hesapla"""
+        if not route:
+            return 0
         distance = self.calculate_route_distance(route)
         fuel_cost = distance * vehicle.cost_per_km
         rental_cost = vehicle.rental_cost if vehicle.is_rental else 0
@@ -125,20 +154,152 @@ class GeneticAlgorithmCVRP:
         """Rotanın araç kapasitesine uygun olup olmadığını kontrol et"""
         return self.calculate_route_weight(route) <= vehicle.capacity
     
+    def get_geographical_clusters(self) -> List[List]:
+        """
+        İstasyonları coğrafi konumlarına göre kümele
+        Birbirine yakın ilçeler aynı kümeye girer
+        """
+        if not self.pickup_stations:
+            return []
+        
+        # Her istasyonu depoya olan mesafesine göre sırala
+        sorted_stations = sorted(
+            self.pickup_stations,
+            key=lambda s: self.depot_distances.get(s.id, 0)
+        )
+        
+        clusters = []
+        used = set()
+        
+        for station in sorted_stations:
+            if station.id in used:
+                continue
+            
+            # Yeni küme başlat
+            cluster = [station]
+            used.add(station.id)
+            
+            # Bu istasyona yakın diğer istasyonları bul
+            for other in sorted_stations:
+                if other.id in used:
+                    continue
+                
+                # İki istasyon arası mesafe
+                dist = self.station_distances.get((station.id, other.id), float('inf'))
+                
+                # Eğer mesafe 20 km'den az ise aynı kümeye ekle
+                if dist < 20:
+                    # Kümedeki toplam ağırlık araç kapasitesini aşmamalı
+                    cluster_weight = sum(self.station_weights.get(s.id, 0) for s in cluster)
+                    station_weight = self.station_weights.get(other.id, 0)
+                    
+                    max_capacity = max(v.capacity for v in self.vehicles)
+                    if cluster_weight + station_weight <= max_capacity:
+                        cluster.append(other)
+                        used.add(other.id)
+            
+            clusters.append(cluster)
+        
+        return clusters
+    
+    def create_individual_smart(self) -> Dict:
+        """
+        Akıllı birey oluşturma - coğrafi kümeleme kullanarak
+        Uzak ilçeler farklı araçlara atanır
+        """
+        individual = {v.id: [] for v in self.vehicles}
+        
+        # Coğrafi kümeleri al
+        clusters = self.get_geographical_clusters()
+        
+        # Her kümeyi bir araca ata
+        vehicle_idx = 0
+        for cluster in clusters:
+            if vehicle_idx >= len(self.vehicles):
+                vehicle_idx = 0
+            
+            vehicle = self.vehicles[vehicle_idx]
+            
+            # Kümedeki toplam ağırlık
+            cluster_weight = sum(self.station_weights.get(s.id, 0) for s in cluster)
+            
+            # Mevcut araç kapasitesini kontrol et
+            current_weight = self.calculate_route_weight(individual[vehicle.id])
+            
+            if current_weight + cluster_weight <= vehicle.capacity:
+                individual[vehicle.id].extend(cluster)
+            else:
+                # Başka uygun araç bul
+                for v in self.vehicles:
+                    v_weight = self.calculate_route_weight(individual[v.id])
+                    if v_weight + cluster_weight <= v.capacity:
+                        individual[v.id].extend(cluster)
+                        break
+                else:
+                    # Uygun araç yoksa en az yüklü araca ekle
+                    min_v = min(self.vehicles, key=lambda v: self.calculate_route_weight(individual[v.id]))
+                    individual[min_v.id].extend(cluster)
+            
+            vehicle_idx += 1
+        
+        return individual
+    
+    def create_individual_single_station(self) -> Dict:
+        """
+        Her istasyonu ayrı araca ata
+        Bu yaklaşım uzak istasyonlar için daha iyi sonuç verebilir
+        """
+        individual = {v.id: [] for v in self.vehicles}
+        
+        # İstasyonları depoya olan mesafeye göre sırala
+        sorted_stations = sorted(
+            self.pickup_stations,
+            key=lambda s: self.depot_distances.get(s.id, 0)
+        )
+        
+        vehicle_idx = 0
+        for station in sorted_stations:
+            if vehicle_idx >= len(self.vehicles):
+                vehicle_idx = 0
+            
+            vehicle = self.vehicles[vehicle_idx]
+            station_weight = self.station_weights.get(station.id, 0)
+            current_weight = self.calculate_route_weight(individual[vehicle.id])
+            
+            if current_weight + station_weight <= vehicle.capacity:
+                individual[vehicle.id].append(station)
+            else:
+                # Başka uygun araç bul
+                for v in self.vehicles:
+                    v_weight = self.calculate_route_weight(individual[v.id])
+                    if v_weight + station_weight <= v.capacity:
+                        individual[v.id].append(station)
+                        break
+            
+            vehicle_idx += 1
+        
+        return individual
+    
     def create_individual(self) -> Dict:
+        """Karışık strateji ile birey oluştur"""
+        r = random.random()
+        if r < 0.4:
+            return self.create_individual_smart()
+        elif r < 0.7:
+            return self.create_individual_single_station()
+        else:
+            return self.create_individual_random()
+    
+    def create_individual_random(self) -> Dict:
         """Rastgele bir birey (çözüm) oluştur"""
-        # Kargo toplama istasyonlarının kopyasını al ve karıştır
         stations_to_assign = self.pickup_stations.copy()
         random.shuffle(stations_to_assign)
         
-        # Her araç için boş rota oluştur
         individual = {v.id: [] for v in self.vehicles}
         
-        # İstasyonları araçlara ata (kapasite kısıtına uygun şekilde)
         for station in stations_to_assign:
             station_weight = self.station_weights.get(station.id, 0)
             
-            # Uygun kapasiteye sahip rastgele bir araç bul
             available_vehicles = [
                 v for v in self.vehicles 
                 if self.calculate_route_weight(individual[v.id]) + station_weight <= v.capacity
@@ -148,7 +309,6 @@ class GeneticAlgorithmCVRP:
                 selected_vehicle = random.choice(available_vehicles)
                 individual[selected_vehicle.id].append(station)
             else:
-                # Kapasiteye uygun araç yoksa, en az yüklü araca ekle
                 min_weight_vehicle = min(
                     self.vehicles,
                     key=lambda v: self.calculate_route_weight(individual[v.id])
@@ -158,27 +318,55 @@ class GeneticAlgorithmCVRP:
         return individual
     
     def calculate_fitness(self, individual: Dict) -> float:
-        """Bireyin uygunluk değerini hesapla (düşük maliyet = yüksek uygunluk)"""
+        """
+        Bireyin uygunluk değerini hesapla
+        
+        CEZA SİSTEMİ:
+        1. Kapasite aşımı cezası
+        2. Uzun rota cezası (ilçeler arası mesafe fazla ise)
+        3. Verimsiz rota cezası (tek istasyon için uzun yol)
+        """
         total_cost = 0
         penalty = 0
         
         for vehicle in self.vehicles:
             route = individual[vehicle.id]
-            if route:
-                # Rota maliyeti
-                total_cost += self.calculate_route_cost(vehicle, route)
-                
-                # Kapasite aşımı cezası
-                route_weight = self.calculate_route_weight(route)
-                if route_weight > vehicle.capacity:
-                    penalty += (route_weight - vehicle.capacity) * 100
+            if not route:
+                continue
+            
+            # Rota maliyeti
+            route_cost = self.calculate_route_cost(vehicle, route)
+            total_cost += route_cost
+            
+            # Kapasite aşımı cezası
+            route_weight = self.calculate_route_weight(route)
+            if route_weight > vehicle.capacity:
+                penalty += (route_weight - vehicle.capacity) * 100
+            
+            # UZUN ROTA CEZASI
+            # Eğer rotada birden fazla istasyon varsa ve aralarındaki mesafe çok fazlaysa ceza ver
+            if len(route) > 1:
+                for i in range(len(route) - 1):
+                    inter_station_dist = self.station_distances.get(
+                        (route[i].id, route[i+1].id), 
+                        self.calculate_distance(route[i], route[i+1])
+                    )
+                    # 25 km'den uzak istasyonlar aynı rotada olmamalı
+                    if inter_station_dist > 25:
+                        penalty += inter_station_dist * 5  # Mesafe bazlı ceza
+            
+            # VERİMSİZLİK CEZASI
+            # Toplam rota mesafesi çok uzunsa ceza ver
+            route_distance = self.calculate_route_distance(route)
+            if route_distance > self.max_route_distance:
+                penalty += (route_distance - self.max_route_distance) * 3
         
         # Uygunluk = 1 / (maliyet + ceza)
         return 1.0 / (total_cost + penalty + 1)
     
     def tournament_selection(self, population: List, fitness_scores: List, tournament_size: int = 5) -> Dict:
         """Turnuva seçimi ile ebeveyn seç"""
-        tournament_indices = random.sample(range(len(population)), tournament_size)
+        tournament_indices = random.sample(range(len(population)), min(tournament_size, len(population)))
         best_index = max(tournament_indices, key=lambda i: fitness_scores[i])
         return copy.deepcopy(population[best_index])
     
@@ -190,7 +378,6 @@ class GeneticAlgorithmCVRP:
         child1 = {v.id: [] for v in self.vehicles}
         child2 = {v.id: [] for v in self.vehicles}
         
-        # Tüm istasyonları topla
         all_stations_p1 = []
         all_stations_p2 = []
         
@@ -198,11 +385,9 @@ class GeneticAlgorithmCVRP:
             all_stations_p1.extend(parent1[v.id])
             all_stations_p2.extend(parent2[v.id])
         
-        # Tek nokta çaprazlama
         if all_stations_p1 and all_stations_p2:
-            crossover_point = random.randint(1, len(all_stations_p1) - 1) if len(all_stations_p1) > 1 else 1
+            crossover_point = random.randint(1, max(1, len(all_stations_p1) - 1))
             
-            # Çocuk 1: P1'in ilk yarısı + P2'den geri kalanlar
             used_stations = set()
             stations_for_child1 = all_stations_p1[:crossover_point]
             used_stations.update(s.id for s in stations_for_child1)
@@ -212,7 +397,6 @@ class GeneticAlgorithmCVRP:
                     stations_for_child1.append(s)
                     used_stations.add(s.id)
             
-            # Çocuk 2: P2'nin ilk yarısı + P1'den geri kalanlar
             used_stations = set()
             stations_for_child2 = all_stations_p2[:crossover_point]
             used_stations.update(s.id for s in stations_for_child2)
@@ -222,39 +406,54 @@ class GeneticAlgorithmCVRP:
                     stations_for_child2.append(s)
                     used_stations.add(s.id)
             
-            # İstasyonları araçlara dağıt
-            child1 = self._distribute_stations_to_vehicles(stations_for_child1)
-            child2 = self._distribute_stations_to_vehicles(stations_for_child2)
+            child1 = self._distribute_stations_smart(stations_for_child1)
+            child2 = self._distribute_stations_smart(stations_for_child2)
         
         return child1, child2
     
-    def _distribute_stations_to_vehicles(self, stations: List) -> Dict:
-        """İstasyonları araçlara dağıt"""
+    def _distribute_stations_smart(self, stations: List) -> Dict:
+        """İstasyonları akıllı şekilde araçlara dağıt"""
         result = {v.id: [] for v in self.vehicles}
         
-        for station in stations:
+        # İstasyonları depoya olan mesafeye göre sırala
+        sorted_stations = sorted(
+            stations,
+            key=lambda s: self.depot_distances.get(s.id, 0)
+        )
+        
+        for station in sorted_stations:
             station_weight = self.station_weights.get(station.id, 0)
+            best_vehicle = None
+            best_score = float('inf')
             
-            # Uygun kapasiteye sahip araç bul
-            available_vehicles = [
-                v for v in self.vehicles
-                if self.calculate_route_weight(result[v.id]) + station_weight <= v.capacity
-            ]
+            for v in self.vehicles:
+                current_weight = self.calculate_route_weight(result[v.id])
+                if current_weight + station_weight > v.capacity:
+                    continue
+                
+                # Skor hesapla: Bu istasyonu bu araca eklemenin maliyeti
+                if result[v.id]:
+                    # Mevcut rotadaki son istasyondan bu istasyona mesafe
+                    last_station = result[v.id][-1]
+                    extra_dist = self.station_distances.get(
+                        (last_station.id, station.id),
+                        self.calculate_distance(last_station, station)
+                    )
+                    score = extra_dist
+                else:
+                    # Boş araç - sadece depoya mesafe
+                    score = self.depot_distances.get(station.id, 0)
+                
+                if score < best_score:
+                    best_score = score
+                    best_vehicle = v
             
-            if available_vehicles:
-                # En az yüklü aracı seç
-                selected_vehicle = min(
-                    available_vehicles,
-                    key=lambda v: self.calculate_route_weight(result[v.id])
-                )
-                result[selected_vehicle.id].append(station)
+            if best_vehicle:
+                result[best_vehicle.id].append(station)
             else:
                 # Kapasiteye uygun araç yoksa en az yüklü araca ekle
-                min_weight_vehicle = min(
-                    self.vehicles,
-                    key=lambda v: self.calculate_route_weight(result[v.id])
-                )
-                result[min_weight_vehicle.id].append(station)
+                min_v = min(self.vehicles, key=lambda v: self.calculate_route_weight(result[v.id]))
+                result[min_v.id].append(station)
         
         return result
     
@@ -264,12 +463,9 @@ class GeneticAlgorithmCVRP:
             return individual
         
         mutated = copy.deepcopy(individual)
-        
-        # Mutasyon tipi seç
-        mutation_type = random.choice(['swap', 'move', 'reverse'])
+        mutation_type = random.choice(['swap', 'move', 'reverse', 'split'])
         
         if mutation_type == 'swap':
-            # İki araç arasında istasyon değiştir
             vehicles_with_stations = [v for v in self.vehicles if mutated[v.id]]
             if len(vehicles_with_stations) >= 2:
                 v1, v2 = random.sample(vehicles_with_stations, 2)
@@ -279,7 +475,6 @@ class GeneticAlgorithmCVRP:
                     mutated[v1.id][idx1], mutated[v2.id][idx2] = mutated[v2.id][idx2], mutated[v1.id][idx1]
         
         elif mutation_type == 'move':
-            # Bir istasyonu başka bir araca taşı
             vehicles_with_stations = [v for v in self.vehicles if mutated[v.id]]
             if vehicles_with_stations:
                 source_vehicle = random.choice(vehicles_with_stations)
@@ -291,11 +486,29 @@ class GeneticAlgorithmCVRP:
                     mutated[target_vehicle.id].append(station)
         
         elif mutation_type == 'reverse':
-            # Bir rotayı ters çevir
             vehicles_with_stations = [v for v in self.vehicles if len(mutated[v.id]) > 1]
             if vehicles_with_stations:
                 vehicle = random.choice(vehicles_with_stations)
                 mutated[vehicle.id].reverse()
+        
+        elif mutation_type == 'split':
+            # Uzun rotayı böl - yeni mutasyon tipi
+            vehicles_with_long_routes = [
+                v for v in self.vehicles 
+                if len(mutated[v.id]) > 1 and self.calculate_route_distance(mutated[v.id]) > self.max_route_distance
+            ]
+            if vehicles_with_long_routes:
+                vehicle = random.choice(vehicles_with_long_routes)
+                # Rastgele bir istasyonu başka araca taşı
+                if len(mutated[vehicle.id]) > 1:
+                    station = mutated[vehicle.id].pop(random.randint(0, len(mutated[vehicle.id]) - 1))
+                    # Boş veya az yüklü araç bul
+                    empty_vehicles = [v for v in self.vehicles if not mutated[v.id]]
+                    if empty_vehicles:
+                        mutated[random.choice(empty_vehicles).id].append(station)
+                    else:
+                        min_v = min(self.vehicles, key=lambda v: self.calculate_route_weight(mutated[v.id]))
+                        mutated[min_v.id].append(station)
         
         return mutated
     
@@ -308,11 +521,15 @@ class GeneticAlgorithmCVRP:
         best_route = route.copy()
         best_distance = self.calculate_route_distance(best_route)
         
-        while improved:
+        iterations = 0
+        max_iterations = 100
+        
+        while improved and iterations < max_iterations:
             improved = False
+            iterations += 1
+            
             for i in range(len(best_route) - 1):
                 for j in range(i + 2, len(best_route)):
-                    # 2-opt swap
                     new_route = best_route[:i+1] + best_route[i+1:j+1][::-1] + best_route[j+1:]
                     new_distance = self.calculate_route_distance(new_route)
                     
@@ -330,12 +547,11 @@ class GeneticAlgorithmCVRP:
         
         best_solution = None
         best_cost = float('inf')
+        no_improvement_count = 0
         
         for generation in range(self.generations):
-            # Uygunluk değerlerini hesapla
             fitness_scores = [self.calculate_fitness(ind) for ind in population]
             
-            # En iyi çözümü güncelle
             best_idx = max(range(len(population)), key=lambda i: fitness_scores[i])
             current_cost = sum(
                 self.calculate_route_cost(v, population[best_idx][v.id])
@@ -345,11 +561,16 @@ class GeneticAlgorithmCVRP:
             if current_cost < best_cost:
                 best_cost = current_cost
                 best_solution = copy.deepcopy(population[best_idx])
+                no_improvement_count = 0
+            else:
+                no_improvement_count += 1
             
-            # Yeni nesil oluştur
+            # Erken durma - 50 nesil iyileşme yoksa dur
+            if no_improvement_count > 50:
+                break
+            
             new_population = []
             
-            # Seçkinlik: En iyi bireyleri koru
             elite_indices = sorted(
                 range(len(population)),
                 key=lambda i: fitness_scores[i],
@@ -359,7 +580,6 @@ class GeneticAlgorithmCVRP:
             for idx in elite_indices:
                 new_population.append(copy.deepcopy(population[idx]))
             
-            # Çaprazlama ve mutasyon ile yeni bireyler oluştur
             while len(new_population) < self.population_size:
                 parent1 = self.tournament_selection(population, fitness_scores)
                 parent2 = self.tournament_selection(population, fitness_scores)
@@ -374,12 +594,12 @@ class GeneticAlgorithmCVRP:
             
             population = new_population
         
-        # En iyi çözümdeki rotaları 2-opt ile optimize et
+        # En iyi çözümdeki rotaları optimize et
         if best_solution:
             for vehicle in self.vehicles:
-                best_solution[vehicle.id] = self.optimize_route_order(best_solution[vehicle.id])
+                if best_solution[vehicle.id]:
+                    best_solution[vehicle.id] = self.optimize_route_order(best_solution[vehicle.id])
             
-            # Final maliyeti hesapla
             best_cost = sum(
                 self.calculate_route_cost(v, best_solution[v.id])
                 for v in self.vehicles
@@ -395,29 +615,16 @@ class KnapsackOptimizer:
     """
     
     def __init__(self, capacity: float, cargos: List):
-        """
-        Args:
-            capacity: Araç kapasitesi (kg)
-            cargos: Kargo listesi
-        """
         self.capacity = int(capacity)
         self.cargos = cargos
     
     def optimize(self) -> Tuple[List, float]:
-        """
-        Dinamik programlama ile optimal kargo seçimi
-        
-        Returns:
-            (seçilen kargolar, toplam değer)
-        """
         n = len(self.cargos)
         W = self.capacity
         
-        # Her kargonun değeri = öncelik * ağırlık (basit değerleme)
-        values = [c.weight for c in self.cargos]  # Değer olarak ağırlığı kullan
+        values = [c.weight for c in self.cargos]
         weights = [int(c.weight) for c in self.cargos]
         
-        # DP tablosu
         dp = [[0 for _ in range(W + 1)] for _ in range(n + 1)]
         
         for i in range(1, n + 1):
@@ -430,7 +637,6 @@ class KnapsackOptimizer:
                 else:
                     dp[i][w] = dp[i-1][w]
         
-        # Seçilen kargoları bul
         selected_cargos = []
         w = W
         for i in range(n, 0, -1):
