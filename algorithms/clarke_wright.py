@@ -336,32 +336,40 @@ class ClarkeWrightSolver:
         return self._assign_routes_to_vehicles(list(routes.values()))
     
     def _assign_routes_to_vehicles(self, route_list: List[List]) -> Dict:
-        """Oluşan rotaları araçlara ata"""
-        # Rotaları mesafeye göre sırala (uzun rotalar önce)
-        route_list.sort(key=lambda r: self._calculate_route_distance(r), reverse=True)
-        
+        """
+        Oluşan rotaları araçlara ata - KAPASİTE KESİNLİKLE AŞILMAZ
+        First-Fit Decreasing (FFD) - Büyük araçlardan başla, minimum araç kullan
+        """
         result = {v.id: [] for v in self.vehicles}
+        vehicle_loads = {v.id: 0.0 for v in self.vehicles}
+        self.vehicle_cargo_assignments = {v.id: [] for v in self.vehicles}
         
-        # Araçları kapasiteye göre sırala (büyük kapasiteli önce)
+        # Araçları kapasiteye göre sırala (BÜYÜKTEN KÜÇÜĞE - önce büyük araçları doldur)
         sorted_vehicles = sorted(self.vehicles, key=lambda v: v.capacity, reverse=True)
         
-        for route in route_list:
-            route_weight = self._calculate_route_weight(route)
+        # Kargoları ağırlığa göre sırala (büyükten küçüğe)
+        sorted_cargos = sorted(self.cargos, key=lambda c: c.weight, reverse=True)
+        
+        # Her kargoyu ilk sığan araca ata (büyük araçlardan başla)
+        for cargo in sorted_cargos:
+            weight = cargo.weight
+            station = cargo.source_station
             
-            # Uygun araç bul
+            # İlk sığan araca ata (büyük araçlar önce)
             assigned = False
             for vehicle in sorted_vehicles:
-                current_weight = self._calculate_route_weight(result[vehicle.id])
-                if current_weight + route_weight <= vehicle.capacity:
-                    result[vehicle.id].extend(route)
+                remaining = vehicle.capacity - vehicle_loads[vehicle.id]
+                if weight <= remaining:
+                    # İstasyonu rotaya ekle (tekrar etmeden)
+                    if station not in result[vehicle.id]:
+                        result[vehicle.id].append(station)
+                    vehicle_loads[vehicle.id] += weight
+                    self.vehicle_cargo_assignments[vehicle.id].append(cargo)
                     assigned = True
                     break
             
-            # Uygun araç bulunamadıysa en az yüklü araca ekle
             if not assigned:
-                min_vehicle = min(sorted_vehicles, 
-                                  key=lambda v: self._calculate_route_weight(result[v.id]))
-                result[min_vehicle.id].extend(route)
+                print(f"CRITICAL: Cargo {cargo.id} ({weight}kg) couldn't be assigned!")
         
         # Her rotayı depoya olan mesafeye göre optimize et
         for vehicle_id in result:
@@ -562,8 +570,12 @@ class RegionalClarkeWright(ClarkeWrightSolver):
     }
     
     def __init__(self, *args, **kwargs):
+        # Önce station_regions'ı tanımla (boş olarak)
+        self.station_regions = {}
         super().__init__(*args, **kwargs)
+        # Şimdi bölgeleri ata ve savings'i yeniden hesapla
         self.station_regions = self._assign_regions()
+        self.savings = self._calculate_savings()
     
     def _assign_regions(self) -> Dict[int, str]:
         """Her istasyonu bir bölgeye ata"""

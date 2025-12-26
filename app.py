@@ -1084,6 +1084,16 @@ def optimize_routes():
     max_criteria = data.get('accept_criteria', 'max_weight')
     use_regional = data.get('use_regional', True)  # Bölge bazlı optimizasyon
     
+    # ==================== ESKİ SEFERLERİ TEMİZLE ====================
+    # Her optimizasyon öncesi eski planned seferleri sil
+    Trip.query.filter_by(status='planned').delete()
+    Route.query.filter_by(status='planned').delete()
+    Vehicle.query.filter_by(is_rental=True).delete()
+    
+    # Kargoları sıfırla (pending durumuna getir)
+    Cargo.query.filter(Cargo.status == 'in_transit').update({'status': 'pending', 'vehicle_id': None})
+    db.session.commit()
+    
     # Bekleyen kargoları al
     pending_cargos = Cargo.query.filter(
         (Cargo.status == 'pending') &
@@ -1125,22 +1135,34 @@ def optimize_routes():
     
     # ==================== SENARYO 1: SINIRSIZ ARAÇ PROBLEMİ ====================
     if optimization_mode == 'unlimited_vehicles':
-        # Kapasite yetersizse kiralık araç ekle
+        # Kapasite yetersizse TEK BİR kiralık araç ekle
         if total_weight > total_capacity:
             needed_capacity = total_weight - total_capacity
-            rental_count = int(needed_capacity / 500) + 1
             
-            for i in range(rental_count):
-                rental = Vehicle(
-                    name=f'Kiralık Araç {i+1} (500kg)',
-                    capacity=500,
-                    cost_per_km=1.0,
-                    is_rental=True,
-                    rental_cost=200
-                )
-                db.session.add(rental)
-                rental_vehicles.append(rental)
+            # Tek bir kiralık araç - ihtiyaca göre uygun kapasiteyi seç
+            # Bin-packing için biraz fazla kapasite al
+            if needed_capacity <= 400:
+                capacity = 500
+                cost = 1.0
+                rental_cost_val = 200
+            elif needed_capacity <= 600:
+                capacity = 750
+                cost = 1.2
+                rental_cost_val = 250
+            else:
+                capacity = 1000
+                cost = 1.5
+                rental_cost_val = 300
             
+            rental = Vehicle(
+                name=f'Kiralık Araç ({capacity}kg)',
+                capacity=capacity,
+                cost_per_km=cost,
+                is_rental=True,
+                rental_cost=rental_cost_val
+            )
+            db.session.add(rental)
+            rental_vehicles.append(rental)
             db.session.flush()
             vehicles_to_use.extend(rental_vehicles)
         
@@ -1225,22 +1247,27 @@ def optimize_routes():
         osrm_geometry = solver.get_osrm_route_geometry(route_stations)
         path_coords = [{'lat': c[1], 'lng': c[0]} for c in osrm_geometry.get('coordinates', [])]
         
-        # Rotadaki kargolar (KAYNAK istasyona göre)
+        # Rotadaki kargolar - SOLVER'DAN ATANAN KARGOLARI AL
         route_cargos = []
         route_total_weight = 0
-        for cargo in accepted_cargos:
-            if cargo.source_station_id in route_station_ids:
-                cargo.vehicle_id = vehicle_id
-                cargo.status = 'in_transit'
-                cargo.is_accepted = True
-                route_cargos.append({
-                    'id': cargo.id,
-                    'sender': cargo.sender_name,
-                    'receiver': cargo.receiver_name,
-                    'weight': cargo.weight,
-                    'source': cargo.source_station.name
-                })
-                route_total_weight += cargo.weight
+        
+        # Solver'dan bu araca atanan kargoları al
+        assigned_cargos = []
+        if hasattr(solver, 'vehicle_cargo_assignments'):
+            assigned_cargos = solver.vehicle_cargo_assignments.get(vehicle_id, [])
+        
+        for cargo in assigned_cargos:
+            cargo.vehicle_id = vehicle_id
+            cargo.status = 'in_transit'
+            cargo.is_accepted = True
+            route_cargos.append({
+                'id': cargo.id,
+                'sender': cargo.sender_name,
+                'receiver': cargo.receiver_name,
+                'weight': cargo.weight,
+                'source': cargo.source_station.name
+            })
+            route_total_weight += cargo.weight
         
         # Rota detayları
         route_details = {
@@ -1322,7 +1349,7 @@ def optimize_routes():
         'mode_description': 'Sınırsız Araç - Tüm kargolar taşınır' if optimization_mode == 'unlimited_vehicles' else 'Belirli Araç - Sabit filolar',
         
         # Maliyet bilgileri
-        'total_cost': round(best_cost, 2),
+        'total_cost': round(total_fuel_cost + total_rental_cost, 2),
         'fuel_cost': round(total_fuel_cost, 2),
         'rental_cost': round(total_rental_cost, 2),
         
