@@ -1035,6 +1035,293 @@ def bulk_add_cargos():
     })
 
 
+# ==================== SENARYO API ====================
+
+@app.route('/api/scenarios/load/<int:scenario_id>', methods=['POST'])
+def load_scenario(scenario_id):
+    """
+    Örnek senaryoları veritabanına yükle
+    
+    Senaryo 1: 1445 kg, 113 kargo (kiralık gereksiz)
+    Senaryo 2: 1105 kg (kiralık gereksiz)
+    Senaryo 3: 2700 kg (kiralık gerekli)
+    Senaryo 4: 1550 kg (kiralık gereksiz)
+    """
+    import random
+    
+    # Senaryolar: {ilce_adi: (kargo_sayisi, toplam_agirlik)}
+    scenarios = {
+        1: {
+            'Başiskele': (10, 120),
+            'Çayırova': (8, 80),
+            'Darıca': (15, 200),
+            'Derince': (10, 150),
+            'Dilovası': (12, 180),
+            'Gebze': (5, 70),
+            'Gölcük': (7, 90),
+            'Kandıra': (6, 60),
+            'Karamürsel': (9, 110),
+            'Kartepe': (11, 130),
+            'Körfez': (6, 75),
+            'İzmit': (14, 160)
+        },
+        2: {
+            'Başiskele': (40, 200),
+            'Çayırova': (35, 175),
+            'Darıca': (10, 150),
+            'Derince': (5, 100),
+            'Gebze': (8, 120),
+            'İzmit': (20, 160)
+        },
+        3: {
+            'Çayırova': (3, 700),
+            'Dilovası': (4, 800),
+            'Gebze': (5, 900),
+            'İzmit': (5, 300)
+        },
+        4: {
+            'Başiskele': (30, 300),
+            'Gölcük': (15, 220),
+            'Kandıra': (5, 250),
+            'Karamürsel': (20, 180),
+            'Kartepe': (10, 200),
+            'Körfez': (8, 400)
+        }
+    }
+    
+    if scenario_id not in scenarios:
+        return jsonify({'error': f'Geçersiz senaryo: {scenario_id}. Geçerli: 1, 2, 3, 4'}), 400
+    
+    scenario = scenarios[scenario_id]
+    
+    # Önce mevcut kargoları, seferleri ve kiralık araçları temizle
+    Trip.query.filter_by(status='planned').delete()
+    Route.query.filter_by(status='planned').delete()
+    Vehicle.query.filter_by(is_rental=True).delete()
+    Cargo.query.delete()
+    db.session.commit()
+    
+    # Hedef: Kocaeli Üniversitesi
+    depot = Station.query.filter_by(is_depot=True).first()
+    if not depot:
+        return jsonify({'error': 'Kocaeli Üniversitesi tanımlı değil'}), 500
+    
+    sender_names = ['Ahmet', 'Mehmet', 'Ayşe', 'Fatma', 'Ali', 'Veli', 'Zeynep', 'Mustafa']
+    receiver_names = ['Prof. Yılmaz', 'Doç. Kaya', 'Öğr. Gör. Demir', 'Arş. Gör. Çelik']
+    
+    total_cargos = 0
+    total_weight = 0
+    errors = []
+    details = []
+    
+    for station_name, (count, weight) in scenario.items():
+        if count <= 0:
+            continue
+            
+        station = Station.query.filter_by(name=station_name).first()
+        if not station:
+            errors.append(f"'{station_name}' istasyonu bulunamadı")
+            continue
+        
+        # Her kargo için ortalama ağırlık hesapla
+        avg_weight = weight / count
+        station_total_weight = 0
+        
+        for i in range(count):
+            # Ağırlık: ortalama etrafında %20 varyasyon
+            cargo_weight = round(avg_weight * random.uniform(0.9, 1.1), 1)
+            cargo_weight = max(1, cargo_weight)  # Minimum 1 kg
+            
+            cargo = Cargo(
+                sender_name=f"{random.choice(sender_names)} - {station_name}",
+                receiver_name=random.choice(receiver_names),
+                weight=cargo_weight,
+                source_station_id=station.id,
+                dest_station_id=depot.id,
+                status='pending'
+            )
+            db.session.add(cargo)
+            total_cargos += 1
+            total_weight += cargo_weight
+            station_total_weight += cargo_weight
+        
+        details.append({
+            'station': station_name,
+            'count': count,
+            'weight': station_total_weight
+        })
+    
+    db.session.commit()
+    
+    # Senaryo bilgileri
+    scenario_info = {
+        1: {'name': 'Senaryo 1', 'expected_weight': 1445, 'expected_rental': False},
+        2: {'name': 'Senaryo 2', 'expected_weight': 1105, 'expected_rental': False},
+        3: {'name': 'Senaryo 3', 'expected_weight': 2700, 'expected_rental': True},
+        4: {'name': 'Senaryo 4', 'expected_weight': 1550, 'expected_rental': False}
+    }
+    
+    info = scenario_info[scenario_id]
+    
+    return jsonify({
+        'message': f"{info['name']} başarıyla yüklendi",
+        'scenario_name': info['name'],
+        'scenario_id': scenario_id,
+        'total_cargos': total_cargos,
+        'total_weight': round(total_weight, 1),
+        'expected_weight': info['expected_weight'],
+        'rental_needed': info['expected_rental'],
+        'vehicle_capacity': 2250,
+        'stations_loaded': len(details),
+        'details': details,
+        'errors': errors
+    })
+
+
+@app.route('/api/scenarios', methods=['GET'])
+def get_scenarios():
+    """Tüm senaryoların listesini döndür"""
+    scenarios = [
+        {
+            'id': 1,
+            'name': 'Senaryo 1',
+            'total_weight': 1445,
+            'total_cargos': 113,
+            'rental_needed': False,
+            'description': 'Tüm ilçelerden dengeli dağılım - Kiralık araç gereksiz'
+        },
+        {
+            'id': 2,
+            'name': 'Senaryo 2',
+            'total_weight': 1105,
+            'total_cargos': 118,
+            'rental_needed': False,
+            'description': 'Batı ilçeleri ağırlıklı - Kiralık araç gereksiz'
+        },
+        {
+            'id': 3,
+            'name': 'Senaryo 3',
+            'total_weight': 2700,
+            'total_cargos': 17,
+            'rental_needed': True,
+            'description': 'Ağır kargolar - KİRALIK ARAÇ GEREKLİ'
+        },
+        {
+            'id': 4,
+            'name': 'Senaryo 4',
+            'total_weight': 1550,
+            'total_cargos': 88,
+            'rental_needed': False,
+            'description': 'Doğu ilçeleri ağırlıklı - Kiralık araç gereksiz'
+        }
+    ]
+    
+    # İstasyon sayısı ekle
+    for s in scenarios:
+        s['stations_count'] = {1: 12, 2: 6, 3: 4, 4: 6}.get(s['id'], 0)
+    
+    return jsonify(scenarios)
+
+
+@app.route('/api/scenarios/create-custom', methods=['POST'])
+def create_custom_scenario():
+    """
+    Kullanıcının oluşturduğu özel senaryoyu yükle
+    
+    Beklenen JSON:
+    {
+        "cargos": [
+            {"station_id": 1, "station_name": "İzmit", "count": 5, "total_weight": 100},
+            ...
+        ]
+    }
+    """
+    import random
+    
+    data = request.get_json()
+    if not data or 'cargos' not in data:
+        return jsonify({'error': 'Kargo verisi gerekli'}), 400
+    
+    cargos_data = data['cargos']
+    if not cargos_data:
+        return jsonify({'error': 'En az bir istasyona kargo ekleyin'}), 400
+    
+    # Önce mevcut kargoları, seferleri ve kiralık araçları temizle
+    Trip.query.filter_by(status='planned').delete()
+    Route.query.filter_by(status='planned').delete()
+    Vehicle.query.filter_by(is_rental=True).delete()
+    Cargo.query.delete()
+    db.session.commit()
+    
+    # Hedef: Kocaeli Üniversitesi
+    depot = Station.query.filter_by(is_depot=True).first()
+    if not depot:
+        return jsonify({'error': 'Kocaeli Üniversitesi tanımlı değil'}), 500
+    
+    sender_names = ['Ahmet', 'Mehmet', 'Ayşe', 'Fatma', 'Ali', 'Veli', 'Zeynep', 'Mustafa']
+    receiver_names = ['Prof. Yılmaz', 'Doç. Kaya', 'Öğr. Gör. Demir', 'Arş. Gör. Çelik']
+    
+    total_cargos = 0
+    total_weight = 0
+    details = []
+    
+    for cargo_info in cargos_data:
+        station_id = cargo_info.get('station_id')
+        station_name = cargo_info.get('station_name')
+        count = cargo_info.get('count', 0)
+        weight = cargo_info.get('total_weight', 0)
+        
+        if count <= 0 or weight <= 0:
+            continue
+        
+        station = Station.query.get(station_id)
+        if not station:
+            continue
+        
+        # Her kargo için ortalama ağırlık
+        avg_weight = weight / count
+        station_total_weight = 0
+        
+        for i in range(count):
+            # Ağırlık: ortalama etrafında %10 varyasyon
+            cargo_weight = round(avg_weight * random.uniform(0.95, 1.05), 1)
+            cargo_weight = max(0.5, cargo_weight)
+            
+            cargo = Cargo(
+                sender_name=f"{random.choice(sender_names)} - {station_name}",
+                receiver_name=random.choice(receiver_names),
+                weight=cargo_weight,
+                source_station_id=station.id,
+                dest_station_id=depot.id,
+                status='pending'
+            )
+            db.session.add(cargo)
+            total_cargos += 1
+            total_weight += cargo_weight
+            station_total_weight += cargo_weight
+        
+        details.append({
+            'station': station_name,
+            'count': count,
+            'weight': station_total_weight
+        })
+    
+    db.session.commit()
+    
+    rental_needed = total_weight > 2250
+    
+    return jsonify({
+        'message': 'Özel senaryo yüklendi',
+        'scenario_name': 'Özel Senaryo',
+        'total_cargos': total_cargos,
+        'total_weight': round(total_weight, 1),
+        'rental_needed': rental_needed,
+        'vehicle_capacity': 2250,
+        'stations_loaded': len(details),
+        'details': details
+    })
+
+
 # ==================== ROTA API ====================
 
 @app.route('/api/routes', methods=['GET'])
@@ -1779,65 +2066,7 @@ def get_station_summary():
 
 # ==================== PARAMETRE API ====================
 
-# ==================== SENARYO API ====================
-
-@app.route('/api/scenarios', methods=['GET'])
-def get_scenarios():
-    """Tüm senaryo bilgilerini getir"""
-    from algorithms.scenarios import get_all_scenarios
-    return jsonify(get_all_scenarios())
-
-
-@app.route('/api/scenarios/load/<int:scenario_id>', methods=['POST'])
-@login_required
-def load_scenario(scenario_id):
-    """Belirli bir senaryoyu yükle"""
-    from algorithms.scenarios import get_scenario_data
-    import random
-    
-    # Mevcut kargoları temizle
-    Cargo.query.delete()
-    Trip.query.delete()
-    Route.query.delete()
-    Vehicle.query.filter_by(is_rental=True).delete()
-    db.session.commit()
-    
-    scenario = get_scenario_data(scenario_id)
-    depot = Station.query.filter_by(is_depot=True).first()
-    
-    if not depot:
-        return jsonify({'error': 'Depo bulunamadı'}), 400
-    
-    total_cargos = 0
-    total_weight = 0
-    
-    for cargo_data in scenario['cargos']:
-        # Kaynak istasyonu bul
-        source_station = Station.query.filter_by(name=cargo_data['source']).first()
-        dest_station = Station.query.filter_by(name=cargo_data['dest']).first()
-        
-        if source_station and dest_station:
-            cargo = Cargo(
-                sender_name=cargo_data.get('sender', f'Gönderici {total_cargos+1}'),
-                receiver_name=cargo_data.get('receiver', f'Alıcı {total_cargos+1}'),
-                weight=cargo_data['weight'],
-                source_station_id=source_station.id,
-                dest_station_id=dest_station.id,
-                status='pending',
-                is_accepted=True
-            )
-            db.session.add(cargo)
-            total_cargos += 1
-            total_weight += cargo_data['weight']
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': f'Senaryo {scenario_id} yüklendi',
-        'scenario_name': scenario['name'],
-        'total_cargos': total_cargos,
-        'total_weight': round(total_weight, 2)
-    })
+# (Senaryo API'si yukarıda tanımlandı - /api/scenarios ve /api/scenarios/load)
 
 
 @app.route('/api/scenarios/compare-all', methods=['POST'])
