@@ -2,6 +2,14 @@
 
 **Kocaeli'nin ilçelerinden Kocaeli Üniversitesi'ne** gelen kargo araçları için yük ve rota planlaması yapan Flask tabanlı, Genetik Algoritma kullanan kargo dağıtım optimizasyon sistemi.
 
+## 📸 Ekran Görüntüleri
+
+Optimize edilmiş rotaların canlı harita üzerinde gösterimi — Clarke-Wright / genetik algoritma ile hesaplanan güzergahlar, araç bazında mesafe ve maliyet:
+
+![Yönetici paneli — optimize edilmiş rotalar](docs/screenshots/02-optimize-harita.png)
+
+![Ana sayfa](docs/screenshots/01-anasayfa.png)
+
 ## 🎯 Proje Amacı
 
 Bu sistem, Kocaeli'nin 12 ilçesinden **Kocaeli Üniversitesi (Umuttepe Kampüsü)**'ne kargo taşımacılığı için:
