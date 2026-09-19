@@ -1,200 +1,139 @@
 # Kocaeli Üniversitesi Kargo Dağıtım Sistemi
 
-**Kocaeli'nin ilçelerinden Kocaeli Üniversitesi'ne** gelen kargo araçları için yük ve rota planlaması yapan Flask tabanlı, Genetik Algoritma kullanan kargo dağıtım optimizasyon sistemi.
+Kocaeli'nin 12 ilçesinden Kocaeli Üniversitesi'ne (Umuttepe Kampüsü) kargo
+taşımacılığı için yük ve rota planlaması yapan, **genetik algoritma** ve
+**Clarke-Wright** tabanlı bir optimizasyon sistemi. Flask ile geliştirildi.
 
-## 📸 Ekran Görüntüleri
+## Ekran görüntüleri
 
-Optimize edilmiş rotaların canlı harita üzerinde gösterimi — Clarke-Wright / genetik algoritma ile hesaplanan güzergahlar, araç bazında mesafe ve maliyet:
+Optimize edilmiş rotaların canlı harita üzerinde gösterimi — hesaplanan
+güzergahlar, araç bazında mesafe ve maliyet:
 
 ![Yönetici paneli — optimize edilmiş rotalar](docs/screenshots/02-optimize-harita.png)
 
 ![Ana sayfa](docs/screenshots/01-anasayfa.png)
 
-## 🎯 Proje Amacı
+## Özellikler
 
-Bu sistem, Kocaeli'nin 12 ilçesinden **Kocaeli Üniversitesi (Umuttepe Kampüsü)**'ne kargo taşımacılığı için:
-- Optimal rota planlaması
-- Araç kapasite-maliyet optimizasyonu
-- Yakıt tüketimi ve kiralama maliyeti hesaplaması
-- Dinamik sefer yönetimi
+- **Genetik algoritma (GA)** ile CVRP (Capacitated Vehicle Routing Problem) çözümü
+- **Clarke-Wright Savings** algoritması ile rota birleştirme
+- **A\*** ile yol bulucu — kuş uçuşu değil, gerçek yol ağı üzerinden mesafe
+- **Knapsack** optimizasyonu ile araç yükleme
+- **Leaflet.js + OpenStreetMap** ile interaktif harita (harici API anahtarı gerekmez)
+- Kullanıcı ve yönetici panelleri, kullanıcı yalnızca kendi kargosunun güzergahını görür
+- Kapasite aşımında otomatik kiralık araç desteği
+- 4 farklı test senaryosu ve anlık sefer kaydı
 
-işlemlerini gerçekleştirir.
+## Algoritmalar
 
-## 🚀 Özellikler
+| Algoritma | Kullanım | Parametreler |
+|---|---|---|
+| **Genetik Algoritma** | CVRP çözümü | Popülasyon 100 · 500 nesil · mutasyon 0.1 · çaprazlama 0.8 · 10 seçkin · 2-opt yerel arama |
+| **Clarke-Wright** | Rota birleştirme | `s(i,j) = d(depo,i) + d(depo,j) − d(i,j)`, kapasite ve bölge kısıtlı |
+| **A\*** | Yol bulma | Haversine sezgisel · yol faktörü 1.35× |
+| **Knapsack** | Araç yükleme | Dinamik programlama · öncelikli kargo seçimi |
 
-- **Genetik Algoritma (GA)** ile CVRP (Capacitated Vehicle Routing Problem) çözümü
-- **A\* Algoritması** ile yol bulucu (kuş uçuşu değil, gerçek yol ağı)
-- **Knapsack Optimizasyonu** ile araç yükleme
-- **Leaflet.js** ile interaktif harita (OpenStreetMap - harici API kullanılmaz)
-- Kullanıcı ve Yönetici panelleri
-- 4 farklı test senaryosu
-- Kiralık araç desteği (kapasite aşımı durumunda)
-- Sefer kayıtlarının anlık tutulması
-- Kullanıcıya sadece kendi kargosunun aracının güzergahının gösterilmesi
+## Kurulum
 
-## 📍 İstasyonlar (Kocaeli İlçeleri)
-
-| İstasyon | Tip | Koordinat |
-|----------|-----|-----------|
-| **Kocaeli Üniversitesi** | Ana Depo | 40.8225, 29.9213 |
-| Başiskele | İlçe | 40.7244, 29.9097 |
-| Çayırova | İlçe | 40.8267, 29.3728 |
-| Darıca | İlçe | 40.7694, 29.3753 |
-| Derince | İlçe | 40.7544, 29.8389 |
-| Dilovası | İlçe | 40.7847, 29.5369 |
-| Gebze | İlçe | 40.8027, 29.4307 |
-| Gölcük | İlçe | 40.7175, 29.8306 |
-| İzmit | İlçe | 40.7656, 29.9406 |
-| Kandıra | İlçe | 41.0706, 30.1528 |
-| Karamürsel | İlçe | 40.6917, 29.6167 |
-| Kartepe | İlçe | 40.7389, 30.0378 |
-| Körfez | İlçe | 40.7539, 29.7636 |
-
-## 📋 Gereksinimler
-
-- Python 3.8+
-- Flask
-- SQLAlchemy
-- NumPy
-- SciPy
-
-## 🔧 Kurulum
-
-1. **Proje dizinine gidin:**
 ```bash
-cd cargosystem
-```
+# 1) Depoyu klonlayın
+git clone https://github.com/selimdogann/kargo-rota-optimizasyonu.git
+cd kargo-rota-optimizasyonu
 
-2. **Sanal ortam oluşturun (önerilir):**
-```bash
-python -m venv venv
-venv\Scripts\activate  # Windows
-# veya
-source venv/bin/activate  # Linux/Mac
-```
+# 2) Sanal ortam
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
-3. **Gereksinimleri yükleyin:**
-```bash
+# 3) Bağımlılıklar
 pip install -r requirements.txt
-```
 
-4. **Veritabanını başlatın:**
-```bash
+# 4) Veritabanını oluşturun
 python init_db.py
-```
 
-5. **Uygulamayı çalıştırın:**
-```bash
+# 5) Çalıştırın
 python app.py
 ```
 
-6. **Tarayıcıda açın:**
-- Ana Sayfa: http://localhost:5000
-- Kullanıcı Paneli: http://localhost:5000/user
-- Yönetici Paneli: http://localhost:5000/admin
+Ardından tarayıcıda:
 
-**Varsayılan Admin Girişi:**
-- Kullanıcı adı: `admin`
-- Şifre: `admin123`
+- Ana sayfa — <http://localhost:5000>
+- Kullanıcı paneli — <http://localhost:5000/user>
+- Yönetici paneli — <http://localhost:5000/admin>
 
-## 📁 Proje Yapısı
+> **macOS notu:** 5000 portu AirPlay tarafından kullanılıyorsa `app.py` içindeki
+> port numarasını (örn. 5055) değiştirin.
 
-```
-cargosystem/
-├── app.py                  # Ana Flask uygulaması
-├── init_db.py              # Veritabanı başlatma
-├── requirements.txt        # Python bağımlılıkları
-├── algorithms/
-│   ├── __init__.py
-│   ├── genetic_algorithm.py  # GA ve Knapsack
-│   ├── distance_calculator.py # A* ve mesafe hesaplama
-│   └── scenarios.py          # Test senaryoları
-├── templates/
-│   ├── index.html          # Ana sayfa
-│   ├── user_panel.html     # Kullanıcı paneli
-│   └── admin_panel.html    # Yönetici paneli
-└── static/
-    ├── css/
-    │   └── styles.css
-    └── js/
-        └── main.js
-```
+Örnek yönetici girişi: `admin@kargo.com` / `admin123` (yalnızca demo verisi).
 
-## 🗺️ Kocaeli İlçeleri
+## İstasyonlar
 
-Sistem 12 Kocaeli ilçesini destekler:
-- İzmit (Ana Depo)
-- Gebze, Darıca, Çayırova, Dilovası
-- Körfez, Derince, Gölcük, Karamürsel
-- Kandıra, Kartepe, Başiskele
+Depo **Kocaeli Üniversitesi**, teslimat noktaları 12 Kocaeli ilçesidir:
 
-## 🚛 Araç Filosu
+| İstasyon | Tip | Koordinat |
+|---|---|---|
+| **Kocaeli Üniversitesi** | Ana depo | 40.8225, 29.9213 |
+| İzmit | İlçe | 40.7656, 29.9406 |
+| Gebze | İlçe | 40.8027, 29.4307 |
+| Darıca | İlçe | 40.7694, 29.3753 |
+| Çayırova | İlçe | 40.8267, 29.3728 |
+| Dilovası | İlçe | 40.7847, 29.5369 |
+| Körfez | İlçe | 40.7539, 29.7636 |
+| Derince | İlçe | 40.7544, 29.8389 |
+| Gölcük | İlçe | 40.7175, 29.8306 |
+| Karamürsel | İlçe | 40.6917, 29.6167 |
+| Başiskele | İlçe | 40.7244, 29.9097 |
+| Kandıra | İlçe | 41.0706, 30.1528 |
+| Kartepe | İlçe | 40.7389, 30.0378 |
+
+## Araç filosu
 
 | Araç | Kapasite | Maliyet |
-|------|----------|---------|
+|---|---|---|
 | Araç 1 | 500 kg | 1.0 ₺/km |
 | Araç 2 | 750 kg | 1.0 ₺/km |
 | Araç 3 | 1000 kg | 1.0 ₺/km |
 | Kiralık | 500 kg | 200 ₺/gün + 1.0 ₺/km |
 
-**Toplam Kapasite:** 2250 kg
+Toplam sabit kapasite: **2250 kg**; aşımda kiralık araç devreye girer.
 
-## 📊 Test Senaryoları
+## Test senaryoları
 
-1. **Senaryo 1 - Orta Yük (1445 kg):** Kapasite yeterli, kiralama gerekmez
-2. **Senaryo 2 - Dengesiz Dağılım (905 kg):** Kapasite yeterli ama dağılım dengesiz
-3. **Senaryo 3 - Kapasite Aşımı (2700 kg):** Kiralık araç gerekli
-4. **Senaryo 4 - Yoğun Hafif Yük (1150 kg):** Kapasite yeterli, minimum maliyet hedefi
+1. **Orta yük (1445 kg)** — kapasite yeterli, kiralama gerekmez
+2. **Dengesiz dağılım (905 kg)** — kapasite yeterli ama dağılım dengesiz
+3. **Kapasite aşımı (2700 kg)** — kiralık araç gerekli
+4. **Yoğun hafif yük (1150 kg)** — minimum maliyet hedefi
 
-## 🔬 Algoritmalar
+## API
 
-### Genetik Algoritma (CVRP)
-- Popülasyon: 100
-- Nesil: 500
-- Mutasyon oranı: 0.1
-- Çaprazlama oranı: 0.8
-- Seçkinler: 10
-- 2-opt yerel optimizasyon
+| Uç nokta | Açıklama |
+|---|---|
+| `GET/POST/DELETE /api/stations` | İstasyon listele / ekle / sil |
+| `GET/POST /api/cargos`, `GET /api/cargos/track/<no>` | Kargo yönetimi ve takip |
+| `GET/POST /api/vehicles` | Araç yönetimi |
+| `POST /api/routes/optimize`, `GET /api/routes/active` | Rota optimizasyonu ve aktif rotalar |
+| `POST /api/scenarios/load/<id>` | Test senaryosu yükle |
+| `GET /api/analytics/summary` | Özet istatistikler |
 
-### A* Pathfinding
-- Haversine sezgisel
-- Yol faktörü: 1.35x
+## Proje yapısı
 
-### Knapsack Optimizasyonu
-- Dinamik programlama
-- Öncelikli kargo seçimi
+```
+kargo-rota-optimizasyonu/
+├── app.py                       # Ana Flask uygulaması
+├── init_db.py                   # Veritabanı başlatma
+├── requirements.txt
+├── algorithms/
+│   ├── genetic_algorithm.py     # GA + Knapsack
+│   ├── clarke_wright.py         # Clarke-Wright Savings
+│   ├── distance_calculator.py   # A* ve mesafe hesaplama
+│   └── scenarios.py             # Test senaryoları
+├── templates/                   # index, user_panel, admin_panel, giriş/kayıt
+└── static/                      # css, js
+```
 
-## 📝 API Endpoints
+## Lisans
 
-### İstasyonlar
-- `GET /api/stations` - Tüm istasyonları listele
-- `POST /api/stations` - Yeni istasyon ekle
-- `DELETE /api/stations/<id>` - İstasyon sil
+MIT — bkz. [LICENSE](LICENSE).
 
-### Kargolar
-- `GET /api/cargos` - Tüm kargoları listele
-- `POST /api/cargos` - Yeni kargo ekle
-- `GET /api/cargos/track/<no>` - Kargo takip
+## Geliştirici
 
-### Araçlar
-- `GET /api/vehicles` - Araçları listele
-- `POST /api/vehicles` - Araç ekle
-
-### Rotalar
-- `POST /api/routes/optimize` - Rota optimizasyonu
-- `GET /api/routes/active` - Aktif rotalar
-
-### Senaryolar
-- `POST /api/scenarios/test/<id>` - Senaryo çalıştır
-
-### Analizler
-- `GET /api/analytics/summary` - Özet istatistikler
-- `GET /api/analytics/cost-breakdown` - Maliyet dağılımı
-
-## 📄 Lisans
-
-Bu proje eğitim amaçlıdır.
-
-## 👤 Geliştirici
-
-Kocaeli Üniversitesi - Yazılım Laboratuvarı Projesi
+**Selim Doğan** — Kocaeli Üniversitesi, Bilgisayar Mühendisliği (Yazılım Laboratuvarı projesi)
