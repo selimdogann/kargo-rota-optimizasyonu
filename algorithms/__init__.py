@@ -17,7 +17,7 @@ from .clarke_wright import (
     get_osrm_route,
     get_osrm_distance_matrix
 )
-from .scenarios import run_scenario
+from .scenarios import SCENARIOS, generate_cargos, all_scenario_summaries
 
 __all__ = [
     'GeneticAlgorithmCVRP',
@@ -32,5 +32,7 @@ __all__ = [
     'calculate_route_with_coordinates',
     'get_network',
     'KocaeliRoadNetwork',
-    'run_scenario'
+    'SCENARIOS',
+    'generate_cargos',
+    'all_scenario_summaries'
 ]
