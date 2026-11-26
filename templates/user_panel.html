@@ -7,395 +7,56 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-            --secondary-gradient: linear-gradient(135deg, #06b6d4 0%, #2971e6 100%);
-        }
-        
-        * {
-            font-family: 'Poppins', 'Segoe UI', sans-serif;
-        }
-        
-        body {
-            background: #0f172a;
-            min-height: 100vh;
-            position: relative;
-            overflow-x: hidden;
-        }
-        
-        /* ===== BACKGROUND SLIDER ===== */
-        .bg-slider {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-        }
-        
-        .bg-slide {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
-            opacity: 0;
-            transition: opacity 2s ease-in-out;
-        }
-        
-        .bg-slide.active {
-            opacity: 1;
-        }
-        
-        .bg-slide:nth-child(1) {
-            /* Kargo Kutuları */
-            background-image: url('https://images.pexels.com/photos/4246120/pexels-photo-4246120.jpeg?auto=compress&cs=tinysrgb&w=1920');
-        }
-        
-        .bg-slide:nth-child(2) {
-            /* Teslimat Aracı */
-            background-image: url('https://images.pexels.com/photos/6169668/pexels-photo-6169668.jpeg?auto=compress&cs=tinysrgb&w=1920');
-        }
-        
-        .bg-slide:nth-child(3) {
-            /* Kurye Paket Taşıma */
-            background-image: url('https://images.pexels.com/photos/4391470/pexels-photo-4391470.jpeg?auto=compress&cs=tinysrgb&w=1920');
-        }
-        
-        .bg-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.75) 100%);
-            z-index: 1;
-        }
-        
-        /* ===== SIDEBAR ===== */
-        .sidebar {
-            background: rgba(30, 41, 59, 0.95);
-            backdrop-filter: blur(20px);
-            min-height: 100vh;
-            padding: 25px 20px;
-            position: fixed;
-            width: 280px;
-            border-right: 1px solid rgba(255,255,255,0.1);
-            z-index: 100;
-        }
-        
-        .sidebar .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: white;
-            font-size: 1.3rem;
-            font-weight: 700;
-            padding: 15px 0 25px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 25px;
-        }
-        
-        .brand-icon {
-            width: 45px;
-            height: 45px;
-            background: var(--primary-gradient);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-        }
-        
-        .sidebar .nav-link {
-            color: rgba(255,255,255,0.6);
-            padding: 14px 18px;
-            border-radius: 12px;
-            margin-bottom: 8px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            font-weight: 500;
-        }
-        
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
-            color: white;
-            background: rgba(59, 130, 246, 0.2);
-            border-left: 3px solid #3b82f6;
-        }
-        
-        .sidebar .nav-link i {
-            margin-right: 12px;
-            width: 22px;
-            font-size: 1.1rem;
-        }
-        
-        /* ===== MAIN CONTENT ===== */
-        .main-content {
-            margin-left: 280px;
-            padding: 30px;
-            position: relative;
-            z-index: 10;
-            min-height: 100vh;
-        }
-        
-        .page-header {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
-            color: white;
-            padding: 35px;
-            border-radius: 20px;
-            margin-bottom: 30px;
-            border: 1px solid rgba(255,255,255,0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .page-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--primary-gradient);
-        }
-        
-        .page-header h2 {
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-        
-        .page-header p {
-            opacity: 0.8;
-            margin: 0;
-        }
-        
-        .card {
-            border: none;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            margin-bottom: 25px;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-        }
-        
-        .card-header {
-            background: rgba(255,255,255,0.9);
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-            padding: 22px 25px;
-            font-weight: 600;
-            border-radius: 20px 20px 0 0 !important;
-        }
-        
-        .card-body {
-            padding: 25px;
-        }
-        
-        #map {
-            height: 500px;
-            border-radius: 15px;
-        }
-        
-        .form-control, .form-select {
-            border-radius: 12px;
-            padding: 14px 18px;
-            border: 2px solid #e2e8f0;
-            background: #f8fafc;
-            transition: all 0.3s;
-        }
-        
-        .form-control:focus, .form-select:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-            background: white;
-        }
-        
-        .btn-primary {
-            background: var(--primary-gradient);
-            border: none;
-            padding: 14px 35px;
-            border-radius: 12px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
-        }
-        
-        .cargo-card {
-            background: white;
-            border-radius: 16px;
-            padding: 22px;
-            margin-bottom: 15px;
-            border-left: 4px solid #3b82f6;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        
-        .cargo-card:hover {
-            transform: translateX(8px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-        
-        .cargo-status {
-            padding: 6px 16px;
-            border-radius: 50px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-        
-        .status-pending {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            color: #92400e;
-        }
-        
-        .status-in_transit {
-            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-            color: #1e40af;
-        }
-        
-        .status-delivered {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .status-rejected {
-            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-            color: #b91c1c;
-        }
-        
-        .tracking-info {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border-radius: 15px;
-            padding: 25px;
-        }
-        
-        .tracking-step {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .tracking-step .icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            font-size: 1.2rem;
-        }
-        
-        .tracking-step.completed .icon {
-            background: #27ae60;
-            color: white;
-        }
-        
-        .tracking-step.active .icon {
-            background: #3498db;
-            color: white;
-            animation: pulse 2s infinite;
-        }
-        
-        .tracking-step.pending .icon {
-            background: #bdc3c7;
-            color: white;
-        }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
-            70% { box-shadow: 0 0 0 15px rgba(52, 152, 219, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
 </head>
 <body>
-    <!-- Background Slider -->
-    <div class="bg-slider">
-        <div class="bg-slide active"></div>
-        <div class="bg-slide"></div>
-        <div class="bg-slide"></div>
-    </div>
-    <div class="bg-overlay"></div>
-    
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="brand">
-            <div class="brand-icon">
-                <i class="bi bi-truck"></i>
-            </div>
-            <span>Kocaeli Kargo</span>
+    <button class="sidebar-toggle" type="button" aria-label="Menüyü aç" aria-expanded="false" onclick="const s=document.querySelector('.sidebar');const o=s.classList.toggle('open');this.setAttribute('aria-expanded',o)"><i class="bi bi-list"></i></button>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-logo">
+                <div class="logo-icon"><i class="bi bi-truck"></i></div>
+                <span class="logo-text">Kocaeli Kargo</span>
+            </a>
         </div>
-        
-        {% if user %}
-        <!-- Kullanıcı Bilgisi -->
-        <div class="user-info mb-4 p-3" style="background: rgba(59, 130, 246, 0.1); border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.2);">
-            <div class="d-flex align-items-center gap-3">
-                <div class="user-avatar" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="bi bi-person-fill text-white fs-5"></i>
-                </div>
-                <div>
-                    <div class="text-white fw-semibold" style="font-size: 0.95rem;">{{ user.full_name }}</div>
-                    <div class="text-white-50" style="font-size: 0.8rem;">{{ user.email }}</div>
-                </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Kargo</div>
+                <a class="nav-link active" href="#send" data-section="send"><i class="bi bi-box-seam"></i> Kargo Gönder</a>
+                <a class="nav-link" href="#track" data-section="track"><i class="bi bi-geo-alt"></i> Kargo Takip</a>
+                <a class="nav-link" href="#my-cargos" data-section="my-cargos"><i class="bi bi-list-ul"></i> Kargolarım</a>
+                <a class="nav-link" href="#stations" data-section="stations"><i class="bi bi-pin-map"></i> İstasyonlar</a>
             </div>
-        </div>
-        {% endif %}
-        
-        <nav class="nav flex-column">
-            <a class="nav-link active" href="#send" data-section="send">
-                <i class="bi bi-box-seam"></i> Kargo Gönder
-            </a>
-            <a class="nav-link" href="#track" data-section="track">
-                <i class="bi bi-geo-alt"></i> Kargo Takip
-            </a>
-            <a class="nav-link" href="#my-cargos" data-section="my-cargos">
-                <i class="bi bi-list-ul"></i> Kargolarım
-            </a>
-            <a class="nav-link" href="#stations" data-section="stations">
-                <i class="bi bi-pin-map"></i> İstasyonlar
-            </a>
-            <hr style="border-color: rgba(255,255,255,0.1);">
-            <a class="nav-link" href="/">
-                <i class="bi bi-house"></i> Ana Sayfa
-            </a>
-            {% if user and user.role == 'admin' %}
-            <a class="nav-link" href="/admin">
-                <i class="bi bi-gear"></i> Yönetici Paneli
-            </a>
-            {% endif %}
-            <hr style="border-color: rgba(255,255,255,0.1);">
-            <a class="nav-link text-danger" href="/logout">
-                <i class="bi bi-box-arrow-right"></i> Çıkış Yap
-            </a>
+            <div class="nav-section">
+                <div class="nav-section-title">Diğer</div>
+                <a class="nav-link" href="/"><i class="bi bi-house"></i> Ana Sayfa</a>
+                {% if user and user.role == 'admin' %}
+                <a class="nav-link" href="/admin"><i class="bi bi-gear"></i> Yönetici Paneli</a>
+                {% endif %}
+            </div>
         </nav>
-    </div>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Page Header -->
-        <div class="page-header">
-            <h2><i class="bi bi-person-circle me-2"></i>Kullanıcı Paneli</h2>
-            <p>Kocaeli ilçelerinden Kocaeli Üniversitesi'ne kargo gönderimi ve takip işlemlerinizi buradan yapabilirsiniz.</p>
-        </div>
-
-        <!-- Bilgi Banner -->
-        <div class="alert alert-info mb-4" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px; color: #e2e8f0;">
-            <div class="row align-items-center">
-                <div class="col-auto"><i class="bi bi-info-circle fs-3" style="color: #60a5fa;"></i></div>
-                <div class="col">
-                    <strong style="color: white;">Kocaeli İlçelerinden Üniversiteye Kargo Gönderimi</strong><br>
-                    <small style="color: #94a3b8;">Kocaeli'nin 12 ilçesinden <strong style="color: #60a5fa;">Kocaeli Üniversitesi</strong> (Umuttepe Kampüsü) merkezine kargo gönderebilirsiniz. Gönderdiğiniz ilçeyi seçmeniz yeterlidir, hedef otomatik olarak Kocaeli Üniversitesi'dir.</small>
+        <div class="sidebar-footer">
+            {% if user %}
+            <div class="user-info">
+                <div class="user-avatar">{{ (user.full_name or user.email)[0]|upper }}</div>
+                <div class="user-details">
+                    <div class="user-name">{{ user.full_name }}</div>
+                    <div class="user-role">{{ user.email }}</div>
                 </div>
+            </div>
+            {% endif %}
+            <a href="/logout" class="btn-logout"><i class="bi bi-box-arrow-left"></i> Çıkış Yap</a>
+        </div>
+    </aside>
+
+    <main class="main-content user-shell">
+        <div class="page-header">
+            <div class="page-title">
+                <h1>Kullanıcı Paneli</h1>
+                <p>12 ilçeden Umuttepe Kampüsü'ne kargo gönder, gönderdiğin kargonun yolunu izle.</p>
             </div>
         </div>
 
@@ -435,7 +96,7 @@
                                     <div class="invalid-feedback">Toplam ağırlık 0.1 - 10000 kg arasında olmalıdır.</div>
                                 </div>
                                 <div class="mb-3" id="weightPerCargoInfo" style="display: none;">
-                                    <div class="alert alert-info py-2 mb-0" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
+                                    <div class="alert alert-info py-2 mb-0">
                                         <small><i class="bi bi-calculator"></i> Her kargo için: <strong id="weightPerCargoValue">0</strong> kg</small>
                                     </div>
                                 </div>
@@ -508,7 +169,7 @@
                             <i class="bi bi-geo-alt text-primary"></i> Kargo Konumu
                         </div>
                         <div class="card-body p-0">
-                            <div id="trackingMap" style="height: 500px; border-radius: 0 0 15px 15px;"></div>
+                            <div id="trackingMap" ></div>
                         </div>
                     </div>
                 </div>
@@ -548,7 +209,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -645,8 +306,8 @@
         
         function addStationMarkers() {
             stations.forEach(station => {
-                const color = station.is_depot ? '#e74c3c' : '#3498db';
-                const size = station.is_depot ? 45 : 35;
+                const color = station.is_depot ? '#1f3038' : '#0d7480';
+                const size = station.is_depot ? 36 : 30;
                 const icon = L.divIcon({
                     className: 'custom-marker',
                     html: `<div style="
@@ -658,17 +319,18 @@
                         align-items: center;
                         justify-content: center;
                         color: white;
-                        font-weight: bold;
-                        border: 3px solid white;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                        font-weight: 500;
+                        font-size: 13px;
+                        border: 2px solid white;
+                        box-shadow: 0 2px 8px rgba(31,48,56,0.3);
                         cursor: pointer;
-                    ">${station.is_depot ? '🎓' : station.name.charAt(0)}</div>`,
+                    ">${station.is_depot ? '<i class="bi bi-mortarboard"></i>' : station.name.charAt(0)}</div>`,
                     iconSize: [size, size],
                     iconAnchor: [size/2, size/2]
                 });
                 
                 const popupContent = station.is_depot 
-                    ? `<strong>${station.name}</strong><br><span class="badge bg-danger">Hedef - Tüm kargolar buraya gelir</span>`
+                    ? `<strong>${station.name}</strong><br><span class="badge bg-dark">Hedef: tüm kargolar buraya gelir</span>`
                     : `<strong>${station.name}</strong><br>
                        <button class="btn btn-sm btn-primary mt-2" onclick="selectAsSource(${station.id})">
                            <i class="bi bi-box-seam"></i> Bu ilçeden gönder
@@ -694,20 +356,20 @@
                     <div class="card h-100">
                         <div class="card-body text-center">
                             <div style="
-                                width: 60px;
-                                height: 60px;
+                                width: 48px;
+                                height: 48px;
                                 border-radius: 50%;
-                                background: ${s.is_depot ? '#e74c3c' : '#3498db'};
-                                color: white;
+                                background: ${s.is_depot ? '#1f3038' : '#e1f0f1'};
+                                color: ${s.is_depot ? '#ffffff' : '#0a5c66'};
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
-                                font-size: 1.5rem;
-                                font-weight: bold;
+                                font-size: 1.25rem;
+                                font-weight: 500;
                                 margin: 0 auto 15px;
-                            ">${s.is_depot ? '🎓' : s.name.charAt(0)}</div>
+                            ">${s.is_depot ? '<i class="bi bi-mortarboard"></i>' : s.name.charAt(0)}</div>
                             <h6>${s.name}</h6>
-                            ${s.is_depot ? '<span class="badge bg-danger">Hedef - Üniversite</span>' : '<span class="badge bg-primary">Toplama Noktası</span>'}
+                            ${s.is_depot ? '<span class="badge bg-dark">Hedef: Üniversite</span>' : '<span class="badge bg-primary">Toplama Noktası</span>'}
                             <p class="small text-muted mt-2 mb-0">
                                 ${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}
                             </p>
@@ -1072,7 +734,7 @@
                     const isMyStop = stop.station_id === routeData.cargo?.source_station_id || 
                                     stop.station_id === routeData.cargo?.dest_station_id;
                     
-                    const color = isMyStop ? '#e74c3c' : '#3498db';
+                    const color = isMyStop ? '#1f3038' : '#0d7480';
                     const icon = L.divIcon({
                         className: 'custom-marker',
                         html: `<div style="
@@ -1170,7 +832,7 @@
                     const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
                     
                     L.polyline(routeCoords, {
-                        color: '#3498db',
+                        color: '#0d7480',
                         weight: 5,
                         opacity: 0.85,
                         smoothFactor: 1
@@ -1190,7 +852,7 @@
             
             // Fallback: OSRM başarısız olursa düz çizgi çiz
             L.polyline(waypoints, {
-                color: '#3498db',
+                color: '#0d7480',
                 weight: 5,
                 opacity: 0.6,
                 dashArray: '10, 10'
@@ -1234,7 +896,7 @@
                         if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
                             const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
                             L.polyline(routeCoords, { 
-                                color: '#95a5a6', 
+                                color: '#8a969c', 
                                 weight: 4, 
                                 opacity: 0.7,
                                 dashArray: '10, 10'
@@ -1242,13 +904,13 @@
                             trackingMap.fitBounds(routeCoords, { padding: [50, 50] });
                         } else {
                             // Fallback
-                            L.polyline(waypoints, { color: '#95a5a6', weight: 3, dashArray: '10, 10' })
+                            L.polyline(waypoints, { color: '#8a969c', weight: 3, dashArray: '10, 10' })
                                 .addTo(trackingMap);
                             trackingMap.fitBounds(waypoints, { padding: [50, 50] });
                         }
                     } catch (e) {
                         // OSRM hatası - düz çizgi çiz
-                        L.polyline(waypoints, { color: '#95a5a6', weight: 3, dashArray: '10, 10' })
+                        L.polyline(waypoints, { color: '#8a969c', weight: 3, dashArray: '10, 10' })
                             .addTo(trackingMap);
                         trackingMap.fitBounds(waypoints, { padding: [50, 50] });
                     }

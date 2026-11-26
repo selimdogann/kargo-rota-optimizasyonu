@@ -7,755 +7,17 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --primary: #3b82f6;
-            --primary-dark: #2563eb;
-            --secondary: #8b5cf6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --dark: #0f172a;
-            --darker: #020617;
-            --sidebar-width: 280px;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif; }
-        
-        body {
-            background: var(--dark);
-            min-height: 100vh;
-            position: relative;
-        }
-        
-        /* ===== BACKGROUND SLIDER ===== */
-        .admin-bg-slider {
-            position: fixed;
-            top: 0;
-            left: var(--sidebar-width);
-            right: 0;
-            bottom: 0;
-            z-index: 0;
-            overflow: hidden;
-        }
-        
-        .admin-bg-slide {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
-            opacity: 0;
-            transition: opacity 2s ease-in-out;
-        }
-        
-        .admin-bg-slide.active {
-            opacity: 1;
-        }
-        
-        .admin-bg-slide:nth-child(1) {
-            /* Kargo Kutuları */
-            background-image: url('https://images.pexels.com/photos/4246120/pexels-photo-4246120.jpeg?auto=compress&cs=tinysrgb&w=1920');
-        }
-        
-        .admin-bg-slide:nth-child(2) {
-            /* Teslimat Aracı */
-            background-image: url('https://images.pexels.com/photos/6169668/pexels-photo-6169668.jpeg?auto=compress&cs=tinysrgb&w=1920');
-        }
-        
-        .admin-bg-slide:nth-child(3) {
-            /* Depo Rafları */
-            background-image: url('https://images.pexels.com/photos/4481326/pexels-photo-4481326.jpeg?auto=compress&cs=tinysrgb&w=1920');
-        }
-        
-        .admin-bg-overlay {
-            position: fixed;
-            top: 0;
-            left: var(--sidebar-width);
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.75) 100%);
-            z-index: 1;
-        }
-
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: var(--sidebar-width);
-            height: 100vh;
-            background: rgba(15, 23, 42, 0.98);
-            backdrop-filter: blur(20px);
-            padding: 0;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .sidebar-header {
-            padding: 24px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .sidebar-logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: white;
-            text-decoration: none;
-        }
-
-        .sidebar-logo .logo-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.4rem;
-            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
-        }
-
-        .sidebar-logo .logo-text {
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
-
-        .sidebar-nav {
-            flex: 1;
-            padding: 20px 14px;
-            overflow-y: auto;
-        }
-
-        .nav-section {
-            margin-bottom: 28px;
-        }
-
-        .nav-section-title {
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: rgba(255,255,255,0.35);
-            padding: 0 14px;
-            margin-bottom: 12px;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 18px;
-            color: rgba(255,255,255,0.6);
-            text-decoration: none;
-            border-radius: 12px;
-            margin-bottom: 6px;
-            transition: all 0.3s;
-            font-size: 0.95rem;
-            font-weight: 500;
-        }
-
-        .nav-link:hover {
-            background: rgba(59, 130, 246, 0.1);
-            color: white;
-        }
-
-        .nav-link.active {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.35);
-        }
-
-        .nav-link i {
-            font-size: 1.2rem;
-            width: 24px;
-            text-align: center;
-        }
-
-        .sidebar-footer {
-            padding: 18px;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 14px;
-            margin-bottom: 14px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .user-avatar {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-
-        .user-details { flex: 1; }
-        .user-name { color: white; font-weight: 600; font-size: 0.95rem; }
-        .user-role { color: rgba(255,255,255,0.5); font-size: 0.75rem; }
-
-        .btn-logout {
-            width: 100%;
-            padding: 12px;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-weight: 500;
-        }
-
-        .btn-logout:hover {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            transform: translateY(-2px);
-        }
-
-        .main-content {
-            margin-left: var(--sidebar-width);
-            padding: 28px;
-            min-height: 100vh;
-            position: relative;
-            z-index: 10;
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 28px;
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
-            padding: 28px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .page-title h1 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 6px;
-        }
-
-        .page-title p {
-            color: rgba(255,255,255,0.6);
-            font-size: 0.95rem;
-            margin: 0;
-        }
-
-        .btn-primary-gradient {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            border: none;
-            color: white;
-            padding: 14px 28px;
-            border-radius: 12px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .btn-primary-gradient:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
-            color: white;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 24px;
-            margin-bottom: 28px;
-        }
-
-        .stat-card {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 28px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-        }
-
-        .stat-card.primary::before { background: var(--primary); }
-        .stat-card.success::before { background: var(--success); }
-        .stat-card.warning::before { background: var(--warning); }
-        .stat-card.danger::before { background: var(--danger); }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-        }
-
-        .stat-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.6rem;
-            margin-bottom: 18px;
-        }
-
-        .stat-card.primary .stat-icon { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .stat-card.success .stat-icon { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .stat-card.warning .stat-icon { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .stat-card.danger .stat-icon { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-
-        /* Simülasyon Stilleri */
-        .sim-pulse {
-            width: 10px;
-            height: 10px;
-            background: #10b981;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-        }
-        
-        .sim-stat-box {
-            padding: 20px;
-            background: rgba(30, 41, 59, 0.5);
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s ease;
-        }
-        
-        .sim-stat-box:hover {
-            transform: translateY(-5px);
-            border-color: rgba(59, 130, 246, 0.3);
-        }
-        
-        .sim-stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin: 0 auto 15px;
-        }
-        
-        .sim-stat-icon.bg-primary { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .sim-stat-icon.bg-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .sim-stat-icon.bg-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .sim-stat-icon.bg-info { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
-        
-        .sim-stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: white;
-        }
-        
-        .sim-stat-label {
-            color: rgba(255,255,255,0.6);
-            font-size: 0.9rem;
-        }
-        
-        .activity-item {
-            transition: all 0.3s ease;
-        }
-        
-        .activity-item:hover {
-            background: rgba(255,255,255,0.05);
-        }
-        
-        .activity-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9rem;
-            flex-shrink: 0;
-        }
-        
-        .activity-icon.bg-primary { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .activity-icon.bg-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .activity-icon.bg-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .activity-icon.bg-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-        .activity-icon.bg-info { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
-        
-        /* Araç marker animasyonu */
-        .vehicle-marker {
-            transition: all 0.05s linear;
-        }
-        
-        .vehicle-marker-icon {
-            font-size: 24px;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-        }
-        
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        
-        .bouncing {
-            animation: bounce 0.5s ease;
-        }
-
-        .stat-value {
-            font-size: 2.2rem;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 6px;
-        }
-
-        .stat-label {
-            color: rgba(255,255,255,0.6);
-            font-size: 0.95rem;
-        }
-
-        .card {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            margin-bottom: 28px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .card-header {
-            padding: 22px 28px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            background: transparent;
-            border-radius: 20px 20px 0 0;
-            display: flex;
-            color: white;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .card-header h5 {
-            font-weight: 600;
-            color: white;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .card-body { padding: 24px; }
-
-        #adminMap {
-            height: 500px;
-            border-radius: 12px;
-            z-index: 1;
-        }
-
-        .table { margin: 0; }
-
-        .table thead th {
-            background: rgba(30, 41, 59, 0.9);
-            border: none;
-            padding: 14px 16px;
-            font-weight: 600;
-            color: #e2e8f0;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .table tbody td {
-            padding: 16px;
-            vertical-align: middle;
-            border-color: rgba(255,255,255,0.1);
-            color: #cbd5e1;
-            background: rgba(30, 41, 59, 0.6);
-        }
-
-        .table tbody tr:hover { background: rgba(59, 130, 246, 0.1); }
-
-        .badge {
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 0.8rem;
-        }
-
-        .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .badge-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-        .badge-primary { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
-        .badge-secondary { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
-
-        .form-control, .form-select {
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 12px 16px;
-            font-size: 0.95rem;
-            transition: all 0.2s;
-            background: rgba(30, 41, 59, 0.8);
-            color: #e2e8f0;
-        }
-
-        .form-control::placeholder {
-            color: #64748b;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-            background: rgba(30, 41, 59, 0.95);
-            color: white;
-        }
-
-        .form-select option {
-            background: #1e293b;
-            color: #e2e8f0;
-        }
-
-        .form-label {
-            font-weight: 500;
-            color: #e2e8f0;
-            margin-bottom: 8px;
-        }
-
-        .btn-outline-secondary {
-            border-color: rgba(255,255,255,0.2);
-            color: #e2e8f0;
-        }
-
-        .btn-outline-secondary:hover {
-            background: rgba(255,255,255,0.1);
-            border-color: rgba(255,255,255,0.3);
-            color: white;
-        }
-
-        .btn-outline-danger {
-            border-color: rgba(239, 68, 68, 0.5);
-            color: #f87171;
-        }
-
-        .btn-outline-danger:hover {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: #ef4444;
-            color: #fca5a5;
-        }
-
-        .optimization-result {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            border-radius: 16px;
-            padding: 32px;
-            color: white;
-        }
-
-        .optimization-result h4 {
-            font-size: 1.5rem;
-            margin-bottom: 24px;
-        }
-
-        .result-stat {
-            text-align: center;
-            padding: 16px;
-        }
-
-        .result-stat .value {
-            font-size: 2rem;
-            font-weight: 700;
-        }
-
-        .result-stat .label {
-            opacity: 0.8;
-            font-size: 0.9rem;
-        }
-
-        .section-content { display: none; }
-        .section-content.active { display: block; }
-
-        .trip-card {
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-            border-left: 4px solid var(--primary);
-        }
-
-        .trip-card .trip-header {
-            display: flex;
-            justify-content: between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .trip-card .trip-title {
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        .card-body {
-            padding: 24px;
-            color: #e2e8f0;
-        }
-
-        .card-body .text-muted {
-            color: #94a3b8 !important;
-        }
-
-        .vehicle-card {
-            background: rgba(30, 41, 59, 0.9);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s;
-        }
-
-        .vehicle-card:hover {
-            border-color: var(--primary);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
-        }
-
-        .vehicle-icon {
-            width: 60px;
-            height: 60px;
-            background: rgba(99, 102, 241, 0.2);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: #60a5fa;
-            margin: 0 auto 16px;
-        }
-
-        .vehicle-name { font-weight: 600; color: white; margin-bottom: 4px; }
-        .vehicle-capacity { color: #94a3b8; font-size: 0.9rem; }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Checkbox stilleri */
-        .form-check-input {
-            background-color: rgba(30, 41, 59, 0.8);
-            border: 2px solid rgba(255,255,255,0.3);
-        }
-
-        .form-check-input:checked {
-            background-color: var(--primary);
-            border-color: var(--primary);
-        }
-
-        .form-check-label {
-            color: #e2e8f0;
-        }
-
-        .toast-container {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 10000;
-        }
-
-        .custom-toast {
-            background: white;
-            border-radius: 12px;
-            padding: 16px 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .custom-toast.success { border-left: 4px solid var(--success); }
-        .custom-toast.error { border-left: 4px solid var(--danger); }
-        .custom-toast.info { border-left: 4px solid var(--primary); }
-
-        @media (max-width: 1200px) {
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .main-content { margin-left: 0; }
-            .stats-grid { grid-template-columns: 1fr; }
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
 </head>
 <body>
-    <!-- Background Slider -->
-    <div class="admin-bg-slider">
-        <div class="admin-bg-slide active"></div>
-        <div class="admin-bg-slide"></div>
-        <div class="admin-bg-slide"></div>
-    </div>
-    <div class="admin-bg-overlay"></div>
+
     
+    <button class="sidebar-toggle" type="button" aria-label="Menüyü aç" aria-expanded="false" onclick="const s=document.querySelector('.sidebar');const o=s.classList.toggle('open');this.setAttribute('aria-expanded',o)"><i class="bi bi-list"></i></button>
     <aside class="sidebar">
         <div class="sidebar-header">
             <a href="#" class="sidebar-logo">
@@ -768,7 +30,7 @@
             <div class="nav-section">
                 <div class="nav-section-title">Ana Menü</div>
                 <a href="#" class="nav-link active" data-section="dashboard">
-                    <i class="bi bi-grid-1x2-fill"></i> Dashboard
+                    <i class="bi bi-grid-1x2-fill"></i> Genel Bakış
                 </a>
                 <a href="#" class="nav-link" data-section="routes">
                     <i class="bi bi-signpost-2-fill"></i> Rota Planlaması
@@ -831,7 +93,7 @@
         <div id="dashboard" class="section-content active">
             <div class="page-header">
                 <div class="page-title">
-                    <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+                    <h1><i class="bi bi-speedometer2 me-2"></i>Genel Bakış</h1>
                     <p>Sistem durumuna genel bakış</p>
                 </div>
                 <div class="header-actions">
@@ -858,7 +120,7 @@
                     <div class="stat-label">Toplam Mesafe</div>
                 </div>
                 <div class="stat-card danger">
-                    <div class="stat-icon"><i class="bi bi-currency-dollar"></i></div>
+                    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
                     <div class="stat-value" id="totalCost">0 ₺</div>
                     <div class="stat-label">Toplam Maliyet</div>
                 </div>
@@ -892,7 +154,7 @@
                             <div id="adminMap"></div>
                             <!-- Simülasyon Durumu Overlay -->
                             <div id="simStatusOverlay" style="display:none; position: absolute; top: 10px; left: 10px; z-index: 1000;">
-                                <div class="p-3 rounded" style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(16, 185, 129, 0.5);">
+                                <div class="p-3 rounded" style="background: rgba(255,255,255,0.96); border: 1px solid var(--line);">
                                     <div class="d-flex align-items-center gap-2 mb-2">
                                         <div class="sim-pulse"></div>
                                         <span class="text-success fw-semibold">Simülasyon Aktif</span>
@@ -914,7 +176,7 @@
                             <h5><i class="bi bi-activity text-success"></i> Canlı Aktivite</h5>
                         </div>
                         <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;" id="liveActivityFeed">
-                            <div class="activity-item p-3 border-bottom" style="border-color: rgba(255,255,255,0.1) !important;">
+                            <div class="activity-item p-3 border-bottom" style="border-color: rgba(31,48,56,0.1) !important;">
                                 <div class="d-flex align-items-start gap-2">
                                     <div class="activity-icon bg-primary"><i class="bi bi-info-circle"></i></div>
                                     <div>
@@ -979,7 +241,7 @@
                                     <span class="text-muted">Simülasyon İlerlemesi</span>
                                     <span class="text-white" id="simProgressPercent">0%</span>
                                 </div>
-                                <div class="progress" style="height: 10px; background: rgba(255,255,255,0.1);">
+                                <div class="progress" style="height: 10px; background: rgba(31,48,56,0.1);">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="simProgressBar" style="width: 0%"></div>
                                 </div>
                             </div>
@@ -1239,29 +501,29 @@
             <!-- Analytics Summary Cards -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-box-seam-fill"></i></div>
                         <div class="stat-value" id="analyticsTotalCargos">0</div>
                         <div class="stat-label">Toplam Kargo</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
                         <div class="stat-value" id="analyticsDeliveredCargos">0</div>
                         <div class="stat-label">Teslim Edildi</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(249, 115, 22, 0.2) 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
                         <div class="stat-value" id="analyticsPendingCargos">0</div>
                         <div class="stat-label">Bekleyen</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);">
-                        <div class="stat-icon"><i class="bi bi-currency-dollar"></i></div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
                         <div class="stat-value" id="analyticsTotalCost">0 ₺</div>
                         <div class="stat-label">Toplam Maliyet</div>
                     </div>
@@ -1382,28 +644,28 @@
             <!-- User Stats -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
                         <div class="stat-value" id="totalUsersCount">0</div>
                         <div class="stat-label">Toplam Kullanıcı</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-person-check-fill"></i></div>
                         <div class="stat-value" id="activeUsersCount">0</div>
                         <div class="stat-label">Aktif Kullanıcı</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-shield-fill-check"></i></div>
                         <div class="stat-value" id="adminUsersCount">0</div>
                         <div class="stat-label">Admin Kullanıcı</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-box-seam-fill"></i></div>
                         <div class="stat-value" id="usersWithCargosCount">0</div>
                         <div class="stat-label">Kargo Gönderen</div>
@@ -1503,28 +765,28 @@
             <!-- Cargo Stats -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-box-seam-fill"></i></div>
                         <div class="stat-value" id="cargoTotalCount">0</div>
                         <div class="stat-label">Toplam Kargo</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
                         <div class="stat-value" id="cargoPendingCount">0</div>
                         <div class="stat-label">Bekliyor</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-truck"></i></div>
                         <div class="stat-value" id="cargoInTransitCount">0</div>
                         <div class="stat-label">Taşımada</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <div class="stat-card">
                         <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
                         <div class="stat-value" id="cargoDeliveredCount">0</div>
                         <div class="stat-label">Teslim Edildi</div>
@@ -1816,7 +1078,7 @@
     <script>
         let adminMap;
         let routeLayers = [];
-        const ROUTE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+        const ROUTE_COLORS = ['#0d7480', '#c2571a', '#3f6a92', '#9a6200', '#b23a48', '#4d7a3a'];
 
         document.addEventListener('DOMContentLoaded', function() {
             initMap();
@@ -1864,10 +1126,10 @@
             const response = await fetch('/api/stations');
             const stations = await response.json();
             stations.forEach(station => {
-                const color = station.is_depot ? '#ef4444' : '#6366f1';
-                const size = station.is_depot ? 14 : 10;
+                const color = station.is_depot ? '#1f3038' : '#ffffff';
+                const size = station.is_depot ? 11 : 7;
                 L.circleMarker([station.latitude, station.longitude], {
-                    radius: size, fillColor: color, color: 'white', weight: 2, opacity: 1, fillOpacity: 0.9
+                    radius: size, fillColor: color, color: station.is_depot ? '#ffffff' : '#1f3038', weight: station.is_depot ? 3 : 2.5, opacity: 1, fillOpacity: 1
                 }).addTo(adminMap).bindPopup(`<strong>${station.name}</strong>`);
             });
         }
@@ -1890,9 +1152,9 @@
                             <div class="trip-header"><span class="trip-title">${trip.vehicle?.name || 'Araç'}</span>
                             <span class="badge badge-${trip.status === 'in_progress' ? 'success' : 'warning'}">${trip.status === 'in_progress' ? 'Yolda' : 'Planlandı'}</span></div>
                             <div class="d-flex justify-content-between text-center">
-                                <div><div style="font-size:1.25rem;font-weight:600;color:#1e293b">${trip.cargo_count}</div><div style="font-size:0.8rem;color:#64748b">Kargo</div></div>
-                                <div><div style="font-size:1.25rem;font-weight:600;color:#1e293b">${trip.total_distance?.toFixed(1)} km</div><div style="font-size:0.8rem;color:#64748b">Mesafe</div></div>
-                                <div><div style="font-size:1.25rem;font-weight:600;color:#1e293b">${trip.total_cost?.toFixed(0)} ₺</div><div style="font-size:0.8rem;color:#64748b">Maliyet</div></div>
+                                <div><div style="font-size:1.25rem;font-weight:600;color:var(--ink)">${trip.cargo_count}</div><div style="font-size:0.8rem;color:var(--muted)">Kargo</div></div>
+                                <div><div style="font-size:1.25rem;font-weight:600;color:var(--ink)">${trip.total_distance?.toFixed(1)} km</div><div style="font-size:0.8rem;color:var(--muted)">Mesafe</div></div>
+                                <div><div style="font-size:1.25rem;font-weight:600;color:var(--ink)">${trip.total_cost?.toFixed(0)} ₺</div><div style="font-size:0.8rem;color:var(--muted)">Maliyet</div></div>
                             </div>
                         </div>`).join('');
                 } else { container.innerHTML = '<p class="text-muted text-center py-4">Aktif sefer bulunmuyor</p>'; }
@@ -2030,7 +1292,7 @@
                             <td>${v.capacity} kg</td>
                             <td>${v.load?.toFixed(1)} kg</td>
                             <td>
-                                <div class="progress" style="height: 18px; background: rgba(255,255,255,0.1);">
+                                <div class="progress" style="height: 18px; background: rgba(31,48,56,0.1);">
                                     <div class="progress-bar ${v.utilization > 90 ? 'bg-danger' : v.utilization > 70 ? 'bg-warning' : 'bg-success'}" 
                                          style="width: ${v.utilization}%">${v.utilization}%</div>
                                 </div>
@@ -2075,7 +1337,7 @@
                 const vehicle = routeDetails.vehicle || trip.vehicle;
                 
                 html += `
-                    <div class="mb-4 p-3 rounded" style="background: rgba(30, 41, 59, 0.9); border-left: 4px solid ${ROUTE_COLORS[index % ROUTE_COLORS.length]};">
+                    <div class="mb-4 p-3 rounded" style="background: var(--surface-2); border: 1px solid var(--line); border-left: 4px solid ${ROUTE_COLORS[index % ROUTE_COLORS.length]};">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0 text-white">
                                 <i class="bi bi-truck-front-fill" style="color: ${ROUTE_COLORS[index % ROUTE_COLORS.length]};"></i>
@@ -2097,7 +1359,7 @@
                                     ${idx < stops.length - 1 ? '<span class="mx-1">→</span>' : ''}
                                 `).join('')}
                                 <span class="mx-1">→</span>
-                                <span class="badge badge-danger">🏫 Kocaeli Üniversitesi</span>
+                                <span class="badge bg-dark"><i class="bi bi-mortarboard"></i> Kocaeli Üniversitesi</span>
                             </div>
                         </div>
                         
@@ -2214,7 +1476,7 @@
                 
                 routes.forEach((route, index) => {
                     html += `
-                        <div class="mb-4 p-3 rounded" style="background: rgba(30, 41, 59, 0.9); border-left: 4px solid ${ROUTE_COLORS[index % ROUTE_COLORS.length]};">
+                        <div class="mb-4 p-3 rounded" style="background: var(--surface-2); border: 1px solid var(--line); border-left: 4px solid ${ROUTE_COLORS[index % ROUTE_COLORS.length]};">
                             <div class="d-flex justify-content-between align-items-start mb-3">
                                 <div>
                                     <h6 class="mb-1 text-white">
@@ -2247,7 +1509,7 @@
                                 </div>
                                 <div class="col-md-3 text-center">
                                     <div class="text-muted small">Verimlilik</div>
-                                    <div class="progress" style="height: 20px; background: rgba(255,255,255,0.1);">
+                                    <div class="progress" style="height: 20px; background: rgba(31,48,56,0.1);">
                                         <div class="progress-bar ${route.capacity_utilization > 90 ? 'bg-danger' : route.capacity_utilization > 70 ? 'bg-warning' : 'bg-success'}" 
                                              style="width: ${route.capacity_utilization}%">${route.capacity_utilization}%</div>
                                     </div>
@@ -2263,7 +1525,7 @@
                                         ${idx < route.route_stops.length - 1 ? '<span class="mx-1">→</span>' : ''}
                                     `).join('')}
                                     <span class="mx-1">→</span>
-                                    <span class="badge badge-danger">🏫 Kocaeli Üniversitesi</span>
+                                    <span class="badge bg-dark"><i class="bi bi-mortarboard"></i> Kocaeli Üniversitesi</span>
                                 </div>
                             </div>
                             
@@ -2565,14 +1827,14 @@
                         datasets: [{
                             label: 'Kargo Sayısı',
                             data: cargoTrendData,
-                            borderColor: '#f59e0b',
+                            borderColor: '#c2571a',
                             backgroundColor: 'rgba(245, 158, 11, 0.1)',
                             borderWidth: 3,
                             fill: true,
                             tension: 0.4,
                             pointRadius: 4,
                             pointHoverRadius: 8,
-                            pointBackgroundColor: '#f59e0b'
+                            pointBackgroundColor: '#c2571a'
                         }]
                     },
                     options: {
@@ -2584,12 +1846,12 @@
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                ticks: { color: '#94a3b8', stepSize: 1 },
-                                grid: { color: 'rgba(255,255,255,0.1)' }
+                                ticks: { color: '#5d6b72', stepSize: 1 },
+                                grid: { color: 'rgba(31,48,56,0.1)' }
                             },
                             x: {
-                                ticks: { color: '#94a3b8' },
-                                grid: { color: 'rgba(255,255,255,0.05)' }
+                                ticks: { color: '#5d6b72' },
+                                grid: { color: 'rgba(31,48,56,0.05)' }
                             }
                         }
                     }
@@ -2608,7 +1870,7 @@
                         labels: ['Yolda', 'Beklemede', 'Teslim Edildi'],
                         datasets: [{
                             data: [statusData.yolda, statusData.beklemede, statusData.teslim],
-                            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
+                            backgroundColor: ['#0d7480', '#c2571a', '#2f7d4f'],
                             borderWidth: 0,
                             cutout: '65%'
                         }]
@@ -2620,7 +1882,7 @@
                             legend: {
                                 position: 'bottom',
                                 labels: { 
-                                    color: '#e2e8f0',
+                                    color: '#1f3038',
                                     padding: 20,
                                     usePointStyle: true,
                                     pointStyle: 'circle'
@@ -2646,7 +1908,7 @@
                         labels: ['Yakıt Maliyeti', 'Kiralama Maliyeti'], 
                         datasets: [{ 
                             data: [costBreakdown.fuel_cost || 0, costBreakdown.rental_cost || 0], 
-                            backgroundColor: ['#3b82f6', '#f59e0b'],
+                            backgroundColor: ['#0d7480', '#c2571a'],
                             borderWidth: 0,
                             cutout: '65%'
                         }] 
@@ -2658,7 +1920,7 @@
                             legend: { 
                                 position: 'bottom',
                                 labels: { 
-                                    color: '#e2e8f0',
+                                    color: '#1f3038',
                                     padding: 20,
                                     usePointStyle: true,
                                     generateLabels: function(chart) {
@@ -2699,13 +1961,13 @@
                             { 
                                 label: 'Beklemede', 
                                 data: pendingData, 
-                                backgroundColor: '#f59e0b',
+                                backgroundColor: '#c2571a',
                                 borderRadius: 4
                             },
                             { 
                                 label: 'Teslim', 
                                 data: deliveredData, 
-                                backgroundColor: '#10b981',
+                                backgroundColor: '#2f7d4f',
                                 borderRadius: 4
                             }
                         ] 
@@ -2717,17 +1979,17 @@
                         plugins: { 
                             legend: { 
                                 position: 'bottom',
-                                labels: { color: '#e2e8f0', padding: 15 }
+                                labels: { color: '#1f3038', padding: 15 }
                             } 
                         }, 
                         scales: { 
                             x: { 
                                 beginAtZero: true,
-                                ticks: { color: '#94a3b8', stepSize: 5 },
-                                grid: { color: 'rgba(255,255,255,0.1)' }
+                                ticks: { color: '#5d6b72', stepSize: 5 },
+                                grid: { color: 'rgba(31,48,56,0.1)' }
                             },
                             y: {
-                                ticks: { color: '#94a3b8' },
+                                ticks: { color: '#5d6b72' },
                                 grid: { display: false }
                             }
                         } 
@@ -2746,7 +2008,7 @@
                                 type: 'bar',
                                 label: 'Sefer Sayısı',
                                 data: tripTrendData.counts,
-                                backgroundColor: '#8b5cf6',
+                                backgroundColor: '#3f6a92',
                                 borderRadius: 4,
                                 yAxisID: 'y'
                             },
@@ -2754,12 +2016,12 @@
                                 type: 'line',
                                 label: 'Maliyet (₺)',
                                 data: tripTrendData.costs,
-                                borderColor: '#f59e0b',
+                                borderColor: '#c2571a',
                                 backgroundColor: 'transparent',
                                 borderWidth: 3,
                                 tension: 0.4,
                                 pointRadius: 4,
-                                pointBackgroundColor: '#f59e0b',
+                                pointBackgroundColor: '#c2571a',
                                 yAxisID: 'y1'
                             }
                         ]
@@ -2770,7 +2032,7 @@
                         plugins: {
                             legend: {
                                 position: 'bottom',
-                                labels: { color: '#e2e8f0', padding: 15 }
+                                labels: { color: '#1f3038', padding: 15 }
                             }
                         },
                         scales: {
@@ -2778,20 +2040,20 @@
                                 type: 'linear',
                                 position: 'left',
                                 beginAtZero: true,
-                                ticks: { color: '#94a3b8', stepSize: 1 },
-                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: '#5d6b72', stepSize: 1 },
+                                grid: { color: 'rgba(31,48,56,0.1)' },
                                 title: { display: false }
                             },
                             y1: {
                                 type: 'linear',
                                 position: 'right',
                                 beginAtZero: true,
-                                ticks: { color: '#f59e0b' },
+                                ticks: { color: '#c2571a' },
                                 grid: { display: false }
                             },
                             x: {
-                                ticks: { color: '#94a3b8' },
-                                grid: { color: 'rgba(255,255,255,0.05)' }
+                                ticks: { color: '#5d6b72' },
+                                grid: { color: 'rgba(31,48,56,0.05)' }
                             }
                         }
                     }
@@ -2807,7 +2069,7 @@
                         datasets: [{
                             label: 'Kargo Sayısı',
                             data: weightRanges,
-                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'],
+                            backgroundColor: ['#0d7480', '#2f7d4f', '#c2571a', '#3f6a92', '#b23a3a'],
                             borderRadius: 6
                         }]
                     },
@@ -2820,11 +2082,11 @@
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                ticks: { color: '#94a3b8' },
-                                grid: { color: 'rgba(255,255,255,0.1)' }
+                                ticks: { color: '#5d6b72' },
+                                grid: { color: 'rgba(31,48,56,0.1)' }
                             },
                             x: {
-                                ticks: { color: '#94a3b8' },
+                                ticks: { color: '#5d6b72' },
                                 grid: { display: false }
                             }
                         }
@@ -2922,7 +2184,7 @@
                     <td>${v.total_weight.toFixed(1)} kg</td>
                     <td>
                         <div class="d-flex align-items-center gap-2">
-                            <div class="progress flex-grow-1" style="height: 8px; background: rgba(255,255,255,0.1);">
+                            <div class="progress flex-grow-1" style="height: 8px; background: rgba(31,48,56,0.1);">
                                 <div class="progress-bar ${v.efficiency > 80 ? 'bg-success' : v.efficiency > 50 ? 'bg-warning' : 'bg-danger'}" 
                                      style="width: ${Math.min(v.efficiency, 100)}%"></div>
                             </div>
@@ -2975,7 +2237,7 @@
                         <td><span class="badge bg-secondary">#${u.id}</span></td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <div class="user-avatar-small" style="width: 35px; height: 35px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.8rem;">
+                                <div class="user-avatar-small" style="width: 35px; height: 35px; background: var(--accent-tint); color: var(--accent-text); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.8rem;">
                                     ${u.full_name ? u.full_name.charAt(0).toUpperCase() : 'U'}
                                 </div>
                                 <div>
@@ -3600,7 +2862,7 @@
             // Gerçek kargo sayısını UI'da göster
             console.log('Simülasyon: Toplam ' + simulationState.totalCargos + ' kargo, ' + simulationState.totalDistance.toFixed(1) + ' km');
             
-            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+            const colors = ['#0d7480', '#2f7d4f', '#c2571a', '#b23a3a', '#3f6a92', '#b23a48', '#5fa8b3'];
             
             // Her rota için araç oluştur
             routes.forEach((route, index) => {
@@ -3772,7 +3034,7 @@
                         if (cargosThisStop > 0) {
                             vehicle.remainingCargos -= cargosThisStop;
                             simulationState.collectedCargos += cargosThisStop;
-                            addActivity('warning', `🚚 ${vehicle.plate}: ${stationName} noktasından ${cargosThisStop} kargo toplandı`);
+                            addActivity('warning', `${vehicle.plate}: ${stationName} noktasından ${cargosThisStop} kargo toplandı`);
                         }
                     }
                 }
@@ -3781,7 +3043,7 @@
                     // Rota tamamlandı
                     vehicle.completed = true;
                     simulationState.completedRoutes++;
-                    addActivity('success', `✅ ${vehicle.plate} rotayı tamamladı ve depoya döndü!`);
+                    addActivity('success', `${vehicle.plate} rotayı tamamladı ve depoya döndü!`);
                     
                     // Araç ikonunu depoya koy
                     vehicle.marker.setLatLng(vehicle.route[vehicle.route.length - 1]);
@@ -3953,7 +3215,7 @@
             
             const item = document.createElement('div');
             item.className = 'activity-item p-3 border-bottom';
-            item.style.borderColor = 'rgba(255,255,255,0.1)';
+            item.style.borderColor = 'rgba(31,48,56,0.1)';
             item.innerHTML = `
                 <div class="d-flex align-items-start gap-2">
                     <div class="activity-icon bg-${type}"><i class="bi ${iconMap[type] || 'bi-circle'}"></i></div>
@@ -4113,7 +3375,7 @@
                     <div class="row">
                         ${result.details.map(d => `
                             <div class="col-md-4 col-lg-3 mb-2">
-                                <div class="d-flex justify-content-between p-2 rounded" style="background: rgba(255,255,255,0.05);">
+                                <div class="d-flex justify-content-between p-2 rounded" style="background: rgba(31,48,56,0.05);">
                                     <span>${d.station}</span>
                                     <span class="text-warning">${d.count} kargo / ${d.weight.toFixed(1)} kg</span>
                                 </div>

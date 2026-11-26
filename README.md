@@ -1,24 +1,35 @@
 # Kocaeli Üniversitesi Kargo Dağıtım Sistemi
 
 Kocaeli'nin 12 ilçesinden Kocaeli Üniversitesi'ne (Umuttepe Kampüsü) kargo
-taşımacılığı için yük ve rota planlaması yapan, **genetik algoritma** ve
-**Clarke-Wright** tabanlı bir optimizasyon sistemi. Flask ile geliştirildi.
+taşımacılığı için yük ve rota planlaması yapan, **Clarke-Wright** ve
+**genetik algoritma** tabanlı bir optimizasyon sistemi. Flask ile geliştirildi.
 
 ## Ekran görüntüleri
 
-Optimize edilmiş rotaların canlı harita üzerinde gösterimi — hesaplanan
-güzergahlar, araç bazında mesafe ve maliyet:
+Ana sayfa: Senaryo 1'in gerçek optimizasyon çıktısı (113 kargo, 2 araç, 390,55 km):
 
-![Yönetici paneli — optimize edilmiş rotalar](docs/screenshots/02-optimize-harita.png)
+![Ana sayfa](docs/screenshots/01-anasayfa.jpg)
 
-![Ana sayfa](docs/screenshots/01-anasayfa.png)
+Kargo listesi ve seçili aracın numaralı durak sırası:
+
+![Kargo listesi ve rota haritası](docs/screenshots/02-kargo-ve-rota.jpg)
+
+Yönetici paneli, sefer simülasyonu çalışırken:
+
+![Yönetici paneli](docs/screenshots/03-yonetici-paneli.png)
+
+Kullanıcı paneli, kargo takibi:
+
+![Kargo takip](docs/screenshots/04-kargo-takip.png)
+
+![Giriş sayfası](docs/screenshots/05-giris.png)
 
 ## Özellikler
 
-- **Genetik algoritma (GA)** ile CVRP (Capacitated Vehicle Routing Problem) çözümü
-- **Clarke-Wright Savings** algoritması ile rota birleştirme
-- **A\*** ile yol bulucu — kuş uçuşu değil, gerçek yol ağı üzerinden mesafe
-- **Knapsack** optimizasyonu ile araç yükleme
+- **Clarke-Wright Savings** ile rota planlama (`/api/routes/optimize`)
+- **Genetik algoritma (GA)** ile dört senaryonun karşılaştırılması (`/api/scenarios/compare-all`)
+- **Dijkstra** ile 13 düğümlü Kocaeli yol ağında en kısa yol (kuş uçuşu değil)
+- **OSRM** ile haritada gerçek yol geometrisi (internet bağlantısı gerekir)
 - **Leaflet.js + OpenStreetMap** ile interaktif harita (harici API anahtarı gerekmez)
 - Kullanıcı ve yönetici panelleri, kullanıcı yalnızca kendi kargosunun güzergahını görür
 - Kapasite aşımında otomatik kiralık araç desteği
@@ -28,10 +39,12 @@ güzergahlar, araç bazında mesafe ve maliyet:
 
 | Algoritma | Kullanım | Parametreler |
 |---|---|---|
-| **Genetik Algoritma** | CVRP çözümü | Popülasyon 100 · 500 nesil · mutasyon 0.1 · çaprazlama 0.8 · 10 seçkin · 2-opt yerel arama |
-| **Clarke-Wright** | Rota birleştirme | `s(i,j) = d(depo,i) + d(depo,j) − d(i,j)`, kapasite ve bölge kısıtlı |
-| **A\*** | Yol bulma | Haversine sezgisel · yol faktörü 1.35× |
-| **Knapsack** | Araç yükleme | Dinamik programlama · öncelikli kargo seçimi |
+| **Clarke-Wright** | Ana rota planlama | `s(i,j) = d(depo,i) + d(depo,j) − d(i,j)`, kapasite ve bölge kısıtlı |
+| **Genetik Algoritma** | Senaryo karşılaştırma | Popülasyon 150 · 300 nesil · mutasyon 0,15 · çaprazlama 0,85 · 15 seçkin |
+| **Dijkstra** | İlçeler arası yol | 13 düğümlü yol ağı, önceden hesaplanmış en kısa yollar |
+
+> `algorithms/genetic_algorithm.py` içinde bir `KnapsackOptimizer` sınıfı var ama şu an
+> hiçbir uç noktaya bağlı değil.
 
 ## Kurulum
 
@@ -40,7 +53,7 @@ güzergahlar, araç bazında mesafe ve maliyet:
 git clone https://github.com/selimdogann/kargo-rota-optimizasyonu.git
 cd kargo-rota-optimizasyonu
 
-# 2) Sanal ortam
+# 2) Sanal ortam (Python 3.12 ile test edildi)
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
@@ -50,18 +63,21 @@ pip install -r requirements.txt
 # 4) Veritabanını oluşturun
 python init_db.py
 
-# 5) Çalıştırın
+# 5) Çalıştırın (varsayılan port 5055)
 python app.py
+
+# Geliştirirken: otomatik yeniden yükleme ve farklı port
+FLASK_DEBUG=1 PORT=5060 python app.py
 ```
 
 Ardından tarayıcıda:
 
-- Ana sayfa — <http://localhost:5000>
-- Kullanıcı paneli — <http://localhost:5000/user>
-- Yönetici paneli — <http://localhost:5000/admin>
+- Ana sayfa: <http://localhost:5055>
+- Kullanıcı paneli: <http://localhost:5055/user>
+- Yönetici paneli: <http://localhost:5055/admin>
 
-> **macOS notu:** 5000 portu AirPlay tarafından kullanılıyorsa `app.py` içindeki
-> port numarasını (örn. 5055) değiştirin.
+> Port, macOS'ta AirPlay'in kullandığı 5000 ile çakışmasın diye 5055'tir;
+> `PORT` ortam değişkeniyle değiştirilebilir.
 
 Örnek yönetici girişi: `admin@kargo.com` / `admin123` (yalnızca demo verisi).
 
@@ -92,16 +108,16 @@ Depo **Kocaeli Üniversitesi**, teslimat noktaları 12 Kocaeli ilçesidir:
 | Araç 1 | 500 kg | 1.0 ₺/km |
 | Araç 2 | 750 kg | 1.0 ₺/km |
 | Araç 3 | 1000 kg | 1.0 ₺/km |
-| Kiralık | 500 kg | 200 ₺/gün + 1.0 ₺/km |
+| Kiralık | 500 / 750 / 1000 kg | 200 / 250 / 300 ₺ günlük + km başına 1,0 / 1,2 / 1,5 ₺ |
 
-Toplam sabit kapasite: **2250 kg**; aşımda kiralık araç devreye girer.
+Toplam sabit kapasite: **2250 kg**; aşımda, aşım miktarına göre tek bir kiralık araç eklenir.
 
 ## Test senaryoları
 
-1. **Orta yük (1445 kg)** — kapasite yeterli, kiralama gerekmez
-2. **Dengesiz dağılım (905 kg)** — kapasite yeterli ama dağılım dengesiz
-3. **Kapasite aşımı (2700 kg)** — kiralık araç gerekli
-4. **Yoğun hafif yük (1150 kg)** — minimum maliyet hedefi
+1. **Dengeli dağılım (1445 kg, 113 kargo, 12 ilçe)**: kiralama gerekmez
+2. **Batı ilçeleri ağırlıklı (1105 kg, 118 kargo, 6 ilçe)**: kiralama gerekmez
+3. **Ağır kargolar (2700 kg, 17 kargo, 4 ilçe)**: kiralık araç gerekli
+4. **Doğu ilçeleri ağırlıklı (1550 kg, 88 kargo, 6 ilçe)**: kiralama gerekmez
 
 ## API
 
@@ -114,6 +130,16 @@ Toplam sabit kapasite: **2250 kg**; aşımda kiralık araç devreye girer.
 | `POST /api/scenarios/load/<id>` | Test senaryosu yükle |
 | `GET /api/analytics/summary` | Özet istatistikler |
 
+## Arayüz
+
+- Tek tasarım sistemi: açık zemin, petrol-teal vurgu (`#0d7480`), teslimat turuncusu
+  (`#c2571a`), Geist yazı ailesi.
+- `static/css/app.css`: yönetici, kullanıcı ve giriş sayfalarının ortak stili (Bootstrap 5 üzerine).
+- `static/css/landing.css` + `static/assets/`: ana sayfa; yerleşim ve hareket katmanı
+  `static/assets` altındaki hazır CSS/JS kitinden gelir.
+- Ana sayfadaki ve giriş ekranındaki harita, optimizasyonun gerçek OSRM çıktısından üretilmiş
+  bir SVG'dir (`templates/partials/route_map*.svg`).
+
 ## Proje yapısı
 
 ```
@@ -122,12 +148,19 @@ kargo-rota-optimizasyonu/
 ├── init_db.py                   # Veritabanı başlatma
 ├── requirements.txt
 ├── algorithms/
-│   ├── genetic_algorithm.py     # GA + Knapsack
-│   ├── clarke_wright.py         # Clarke-Wright Savings
-│   ├── distance_calculator.py   # A* ve mesafe hesaplama
+│   ├── clarke_wright.py         # Clarke-Wright Savings + OSRM
+│   ├── genetic_algorithm.py     # GA (+ kullanılmayan Knapsack sınıfı)
+│   ├── distance_calculator.py   # Yol ağı ve Dijkstra
 │   └── scenarios.py             # Test senaryoları
-├── templates/                   # index, user_panel, admin_panel, giriş/kayıt
-└── static/                      # css, js
+├── templates/
+│   ├── index.html               # Ana sayfa
+│   ├── auth_base.html           # Giriş/kayıt sayfalarının ortak iskeleti
+│   ├── login.html, register.html, forgot_password.html, reset_password.html
+│   ├── admin_panel.html, user_panel.html
+│   └── partials/                # Rota haritası SVG'leri
+└── static/
+    ├── css/app.css, css/landing.css
+    └── assets/                  # Ana sayfa yerleşim ve hareket kiti
 ```
 
 ## Lisans
