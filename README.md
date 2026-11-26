@@ -114,10 +114,10 @@ Toplam sabit kapasite: **2250 kg**; aşımda, aşım miktarına göre tek bir ki
 
 ## Test senaryoları
 
-1. **Dengeli dağılım (1445 kg, 113 kargo, 12 ilçe)**: kiralama gerekmez
-2. **Batı ilçeleri ağırlıklı (1105 kg, 118 kargo, 6 ilçe)**: kiralama gerekmez
-3. **Ağır kargolar (2700 kg, 17 kargo, 4 ilçe)**: kiralık araç gerekli
-4. **Doğu ilçeleri ağırlıklı (1550 kg, 88 kargo, 6 ilçe)**: kiralama gerekmez
+1. **Dengeli gün (1425 kg, 113 kargo, 12 ilçe)**: her ilçeden toplama, kiralama gerekmez
+2. **Batıda hafif paketler (805 kg, 118 kargo, 5 ilçe)**: depoya uzak, çok sayıda küçük kargo; kiralama gerekmez
+3. **Kapasite aşımı (2700 kg, 17 kargo, 4 ilçe)**: 2250 kg'lık filo yetmez, kiralık araç eklenir
+4. **Doğuda ağır yük (1550 kg, 88 kargo, 6 ilçe)**: kapasiteye sığar, kiralama gerekmez
 
 ## API
 
