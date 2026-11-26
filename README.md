@@ -130,6 +130,23 @@ Toplam sabit kapasite: **2250 kg**; aşımda, aşım miktarına göre tek bir ki
 | `POST /api/scenarios/load/<id>` | Test senaryosu yükle |
 | `GET /api/analytics/summary` | Özet istatistikler |
 
+**Yetki:** `/api` altındaki her uç varsayılan olarak yalnızca yöneticiye açıktır.
+Girişsiz yalnızca istasyon, araç ve özet istatistik okunabilir. Giriş yapmış kullanıcı
+kargo gönderebilir ve yalnızca kendi kargosunu görüp takip edebilir. Yetkisiz istekler
+`401` / `403` JSON döner.
+
+## Testler
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
+```
+
+64 test; geçici bir veritabanında ve internetsiz çalışır (OSRM kapatılır, kod kendi mesafe
+hesabına düşer). Kapsam: giriş/kayıt/şifre sıfırlama, API yetkileri ve "yalnızca kendi kargon"
+kuralı, dört senaryonun yüklenip optimize edilmesi (kapasite aşılmaz, kiralık araç yalnızca
+gerektiğinde eklenir), genetik algoritma karşılaştırması ve yol ağı birim testleri.
+
 ## Arayüz
 
 - Tek tasarım sistemi: açık zemin, petrol-teal vurgu (`#0d7480`), teslimat turuncusu
@@ -146,12 +163,14 @@ Toplam sabit kapasite: **2250 kg**; aşımda, aşım miktarına göre tek bir ki
 kargo-rota-optimizasyonu/
 ├── app.py                       # Ana Flask uygulaması
 ├── init_db.py                   # Veritabanı başlatma
-├── requirements.txt
+├── requirements.txt, requirements-dev.txt
+├── pytest.ini
+├── tests/                       # pytest paketi
 ├── algorithms/
 │   ├── clarke_wright.py         # Clarke-Wright Savings + OSRM
 │   ├── genetic_algorithm.py     # GA (+ kullanılmayan Knapsack sınıfı)
 │   ├── distance_calculator.py   # Yol ağı ve Dijkstra
-│   └── scenarios.py             # Test senaryoları
+│   └── scenarios.py             # Dört senaryonun tek kaynağı
 ├── templates/
 │   ├── index.html               # Ana sayfa
 │   ├── auth_base.html           # Giriş/kayıt sayfalarının ortak iskeleti
