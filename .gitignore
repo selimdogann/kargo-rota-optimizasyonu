@@ -17,3 +17,5 @@ instance/
 .DS_Store
 .idea/
 .vscode/
+.taste-skill/
+shots/
