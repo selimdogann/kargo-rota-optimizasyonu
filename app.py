@@ -3,7 +3,7 @@ Kargo Dağıtım Sistemi - Ana Flask Uygulaması
 CVRP (Capacitated Vehicle Routing Problem) çözümü için Genetik Algoritma kullanır
 """
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, abort
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 from functools import wraps
@@ -15,8 +15,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'kargo-sistem-secret-key-2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cargo_system.db'
+# Ortam değişkeni verilmezse geliştirme varsayılanları kullanılır.
+# Canlıya alırken SECRET_KEY mutlaka değiştirilmeli.
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'kargo-sistem-secret-key-2024')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///cargo_system.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -34,12 +36,30 @@ def generate_reset_token():
     return secrets.token_urlsafe(32)
 
 
+def is_admin():
+    """Oturumdaki kişi yönetici mi?"""
+    return 'admin_id' in session
+
+
+def is_logged_in():
+    """Yönetici ya da normal kullanıcı olarak giriş yapılmış mı?"""
+    return 'admin_id' in session or 'user_id' in session
+
+
+def _deny(status):
+    """API isteğine JSON hata, sayfa isteğine giriş sayfasına yönlendirme döndür."""
+    if request.path.startswith('/api/'):
+        message = 'Giriş yapmanız gerekiyor' if status == 401 else 'Bu işlem için yetkiniz yok'
+        return jsonify({'error': message}), status
+    return redirect(url_for('login'))
+
+
 def login_required(f):
     """Admin girişi gerektiren decorator"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'admin_id' not in session:
-            return redirect(url_for('login'))
+            return _deny(401 if not is_logged_in() else 403)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -49,9 +69,52 @@ def user_login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            return redirect(url_for('login'))
+            return _deny(401)
         return f(*args, **kwargs)
     return decorated_function
+
+
+# ==================== API YETKİ POLİTİKASI ====================
+# /api altındaki her uç varsayılan olarak YALNIZCA YÖNETİCİYE açıktır.
+# Yeni bir uç eklendiğinde unutulsa bile korunur; açmak için aşağıdaki listelere eklenmeli.
+
+# Giriş gerektirmeyen, salt okunur uçlar (ana sayfa bunları kullanır)
+PUBLIC_API_ENDPOINTS = {
+    'get_stations',          # GET /api/stations
+    'get_vehicles',          # GET /api/vehicles
+    'get_analytics_summary', # GET /api/analytics/summary (yalnızca toplam sayılar)
+}
+
+# Giriş yapmış her kullanıcıya açık uçlar (kullanıcı paneli bunları kullanır).
+# Sahiplik kontrolü (yalnızca kendi kargosu) ilgili fonksiyonun içinde yapılır.
+USER_API_ENDPOINTS = {
+    'get_cargos',            # GET  /api/cargos      -> kullanıcı yalnızca kendi kargolarını görür
+    'add_cargo',             # POST /api/cargos
+    'get_my_cargos',         # GET  /api/cargos/my
+    'track_cargo',           # GET  /api/cargos/track/<id>
+    'get_cargo_route',       # GET  /api/cargos/my-route/<id>
+    'get_current_user',      # GET  /api/current-user
+    'user_change_password',  # POST /api/user/change-password
+}
+
+
+@app.before_request
+def enforce_api_policy():
+    if not request.path.startswith('/api/'):
+        return None
+    endpoint = request.endpoint
+    if endpoint is None or endpoint in PUBLIC_API_ENDPOINTS:
+        return None  # bilinmeyen yol 404 olarak kalsın
+    if not is_logged_in():
+        return _deny(401)
+    if endpoint in USER_API_ENDPOINTS or is_admin():
+        return None
+    return _deny(403)
+
+
+def can_see_cargo(cargo):
+    """Yönetici her kargoyu, kullanıcı yalnızca kendi gönderdiği kargoyu görebilir."""
+    return is_admin() or (cargo.user_id is not None and cargo.user_id == session.get('user_id'))
 
 
 # ==================== VERİTABANI MODELLERİ ====================
@@ -765,11 +828,9 @@ def get_cargos():
     if session.get('user_role') == 'admin' or session.get('admin_id'):
         # Admin tüm kargoları görebilir
         cargos = Cargo.query.all()
-    elif session.get('user_id'):
+    else:
         # Normal kullanıcı sadece kendi kargolarını görebilir
         cargos = Cargo.query.filter_by(user_id=session.get('user_id')).all()
-    else:
-        cargos = Cargo.query.all()
     return jsonify([c.to_dict() for c in cargos])
 
 
@@ -944,6 +1005,8 @@ def delete_all_cargos():
 def track_cargo(id):
     """Kargo takibi"""
     cargo = Cargo.query.get_or_404(id)
+    if not can_see_cargo(cargo):
+        abort(404)  # başkasının kargosunun var olduğunu bile söyleme
     result = cargo.to_dict()
     
     # Eğer araç atanmışsa, rota bilgisini de ekle (planned veya in_progress)
@@ -1047,52 +1110,10 @@ def load_scenario(scenario_id):
     Senaryo 3: 2700 kg (kiralık gerekli)
     Senaryo 4: 1550 kg (kiralık gereksiz)
     """
-    import random
+    from algorithms.scenarios import SCENARIOS, generate_cargos, scenario_summary
     
-    # Senaryolar: {ilce_adi: (kargo_sayisi, toplam_agirlik)}
-    scenarios = {
-        1: {
-            'Başiskele': (10, 120),
-            'Çayırova': (8, 80),
-            'Darıca': (15, 200),
-            'Derince': (10, 150),
-            'Dilovası': (12, 180),
-            'Gebze': (5, 70),
-            'Gölcük': (7, 90),
-            'Kandıra': (6, 60),
-            'Karamürsel': (9, 110),
-            'Kartepe': (11, 130),
-            'Körfez': (6, 75),
-            'İzmit': (14, 160)
-        },
-        2: {
-            'Başiskele': (40, 200),
-            'Çayırova': (35, 175),
-            'Darıca': (10, 150),
-            'Derince': (5, 100),
-            'Gebze': (8, 120),
-            'İzmit': (20, 160)
-        },
-        3: {
-            'Çayırova': (3, 700),
-            'Dilovası': (4, 800),
-            'Gebze': (5, 900),
-            'İzmit': (5, 300)
-        },
-        4: {
-            'Başiskele': (30, 300),
-            'Gölcük': (15, 220),
-            'Kandıra': (5, 250),
-            'Karamürsel': (20, 180),
-            'Kartepe': (10, 200),
-            'Körfez': (8, 400)
-        }
-    }
-    
-    if scenario_id not in scenarios:
+    if scenario_id not in SCENARIOS:
         return jsonify({'error': f'Geçersiz senaryo: {scenario_id}. Geçerli: 1, 2, 3, 4'}), 400
-    
-    scenario = scenarios[scenario_id]
     
     # Önce mevcut kargoları, seferleri ve kiralık araçları temizle
     Trip.query.filter_by(status='planned').delete()
@@ -1106,62 +1127,36 @@ def load_scenario(scenario_id):
     if not depot:
         return jsonify({'error': 'Kocaeli Üniversitesi tanımlı değil'}), 500
     
-    sender_names = ['Ahmet', 'Mehmet', 'Ayşe', 'Fatma', 'Ali', 'Veli', 'Zeynep', 'Mustafa']
-    receiver_names = ['Prof. Yılmaz', 'Doç. Kaya', 'Öğr. Gör. Demir', 'Arş. Gör. Çelik']
-    
     total_cargos = 0
     total_weight = 0
     errors = []
-    details = []
+    per_station = {}
+    stations_by_name = {st.name: st for st in Station.query.all()}
     
-    for station_name, (count, weight) in scenario.items():
-        if count <= 0:
-            continue
-            
-        station = Station.query.filter_by(name=station_name).first()
+    for c in generate_cargos(scenario_id):
+        station = stations_by_name.get(c['source'])
         if not station:
-            errors.append(f"'{station_name}' istasyonu bulunamadı")
+            if f"'{c['source']}' istasyonu bulunamadı" not in errors:
+                errors.append(f"'{c['source']}' istasyonu bulunamadı")
             continue
-        
-        # Her kargo için ortalama ağırlık hesapla
-        avg_weight = weight / count
-        station_total_weight = 0
-        
-        for i in range(count):
-            # Ağırlık: ortalama etrafında %20 varyasyon
-            cargo_weight = round(avg_weight * random.uniform(0.9, 1.1), 1)
-            cargo_weight = max(1, cargo_weight)  # Minimum 1 kg
-            
-            cargo = Cargo(
-                sender_name=f"{random.choice(sender_names)} - {station_name}",
-                receiver_name=random.choice(receiver_names),
-                weight=cargo_weight,
-                source_station_id=station.id,
-                dest_station_id=depot.id,
-                status='pending'
-            )
-            db.session.add(cargo)
-            total_cargos += 1
-            total_weight += cargo_weight
-            station_total_weight += cargo_weight
-        
-        details.append({
-            'station': station_name,
-            'count': count,
-            'weight': station_total_weight
-        })
+        db.session.add(Cargo(
+            sender_name=c['sender'],
+            receiver_name=c['receiver'],
+            weight=c['weight'],
+            source_station_id=station.id,
+            dest_station_id=depot.id,
+            status='pending'
+        ))
+        total_cargos += 1
+        total_weight += c['weight']
+        entry = per_station.setdefault(c['source'], {'station': c['source'], 'count': 0, 'weight': 0})
+        entry['count'] += 1
+        entry['weight'] += c['weight']
+    details = list(per_station.values())
     
     db.session.commit()
     
-    # Senaryo bilgileri
-    scenario_info = {
-        1: {'name': 'Senaryo 1', 'expected_weight': 1445, 'expected_rental': False},
-        2: {'name': 'Senaryo 2', 'expected_weight': 1105, 'expected_rental': False},
-        3: {'name': 'Senaryo 3', 'expected_weight': 2700, 'expected_rental': True},
-        4: {'name': 'Senaryo 4', 'expected_weight': 1550, 'expected_rental': False}
-    }
-    
-    info = scenario_info[scenario_id]
+    info = scenario_summary(scenario_id)
     
     return jsonify({
         'message': f"{info['name']} başarıyla yüklendi",
@@ -1169,8 +1164,8 @@ def load_scenario(scenario_id):
         'scenario_id': scenario_id,
         'total_cargos': total_cargos,
         'total_weight': round(total_weight, 1),
-        'expected_weight': info['expected_weight'],
-        'rental_needed': info['expected_rental'],
+        'expected_weight': info['total_weight'],
+        'rental_needed': info['rental_needed'],
         'vehicle_capacity': 2250,
         'stations_loaded': len(details),
         'details': details,
@@ -1180,47 +1175,9 @@ def load_scenario(scenario_id):
 
 @app.route('/api/scenarios', methods=['GET'])
 def get_scenarios():
-    """Tüm senaryoların listesini döndür"""
-    scenarios = [
-        {
-            'id': 1,
-            'name': 'Senaryo 1',
-            'total_weight': 1445,
-            'total_cargos': 113,
-            'rental_needed': False,
-            'description': 'Tüm ilçelerden dengeli dağılım - Kiralık araç gereksiz'
-        },
-        {
-            'id': 2,
-            'name': 'Senaryo 2',
-            'total_weight': 1105,
-            'total_cargos': 118,
-            'rental_needed': False,
-            'description': 'Batı ilçeleri ağırlıklı - Kiralık araç gereksiz'
-        },
-        {
-            'id': 3,
-            'name': 'Senaryo 3',
-            'total_weight': 2700,
-            'total_cargos': 17,
-            'rental_needed': True,
-            'description': 'Ağır kargolar - KİRALIK ARAÇ GEREKLİ'
-        },
-        {
-            'id': 4,
-            'name': 'Senaryo 4',
-            'total_weight': 1550,
-            'total_cargos': 88,
-            'rental_needed': False,
-            'description': 'Doğu ilçeleri ağırlıklı - Kiralık araç gereksiz'
-        }
-    ]
-    
-    # İstasyon sayısı ekle
-    for s in scenarios:
-        s['stations_count'] = {1: 12, 2: 6, 3: 4, 4: 6}.get(s['id'], 0)
-    
-    return jsonify(scenarios)
+    """Tüm senaryoların listesini döndür (algorithms/scenarios.py'den)"""
+    from algorithms.scenarios import all_scenario_summaries
+    return jsonify(all_scenario_summaries())
 
 
 @app.route('/api/scenarios/create-custom', methods=['POST'])
@@ -1821,6 +1778,8 @@ def get_cargo_route(cargo_id):
     DİĞER ARAÇLARIN GÜZERGAH BİLGİLERİNE ERİŞİM ENGELLENMİŞTİR
     """
     cargo = Cargo.query.get_or_404(cargo_id)
+    if not can_see_cargo(cargo):
+        abort(404)
     
     if not cargo.vehicle_id:
         return jsonify({
@@ -2076,16 +2035,14 @@ def compare_all_scenarios():
     Tüm senaryoları çalıştır ve karşılaştırmalı sonuç döndür.
     Her senaryo için optimizasyon yapılır ve sonuçlar toplanır.
     """
-    from algorithms.scenarios import get_scenario_data, get_all_scenarios
+    from algorithms.scenarios import SCENARIOS, generate_cargos
     from algorithms.genetic_algorithm import GeneticAlgorithmCVRP
     from algorithms.distance_calculator import road_distance
     import json
     
     results = []
-    scenarios_info = get_all_scenarios()
-    
-    for scenario_info in scenarios_info:
-        scenario_id = scenario_info['id']
+    for scenario_id in sorted(SCENARIOS):
+        scenario = SCENARIOS[scenario_id]
         
         # Mevcut verileri temizle
         Cargo.query.delete()
@@ -2093,28 +2050,28 @@ def compare_all_scenarios():
         Route.query.delete()
         Vehicle.query.filter_by(is_rental=True).delete()
         db.session.commit()
+        # Toplu silme oturumdaki eski nesneleri temizlemez; aynı ID'ler yeniden
+        # kullanıldığında eski kayıtlar karışmasın diye oturumu boşalt
+        db.session.expunge_all()
         
-        # Senaryo verilerini yükle
-        scenario = get_scenario_data(scenario_id)
+        # Senaryo verilerini yükle: arayüzdeki "Senaryo yükle" ile aynı kaynak
         depot = Station.query.filter_by(is_depot=True).first()
+        stations_by_name = {st.name: st for st in Station.query.all()}
         
         total_weight = 0
         cargo_count = 0
         
-        for cargo_data in scenario['cargos']:
-            source_station = Station.query.filter_by(name=cargo_data['source']).first()
-            dest_station = Station.query.filter_by(name=cargo_data['dest']).first()
-            
-            if source_station and dest_station:
-                cargo = Cargo(
-                    sender_name=cargo_data.get('sender', f'Gönderici'),
-                    receiver_name=cargo_data.get('receiver', f'Alıcı'),
+        for cargo_data in generate_cargos(scenario_id):
+            source_station = stations_by_name.get(cargo_data['source'])
+            if source_station and depot:
+                db.session.add(Cargo(
+                    sender_name=cargo_data['sender'],
+                    receiver_name=cargo_data['receiver'],
                     weight=cargo_data['weight'],
                     source_station_id=source_station.id,
-                    dest_station_id=dest_station.id,
+                    dest_station_id=depot.id,
                     status='pending'
-                )
-                db.session.add(cargo)
+                ))
                 total_weight += cargo_data['weight']
                 cargo_count += 1
         
